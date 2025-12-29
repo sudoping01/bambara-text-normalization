@@ -81,9 +81,28 @@ class BambaraNormalizer:
         # "k'a": "kɛ a", I need to see how I'm gonna handle this one : we can have a k'a la  ==> a kɛ a la
         "n'o": "ni o",
         "n'u": "ni u",
-
-
     }
+
+
+    # NOTE FOR MYSELF: 
+    # Kɛ o => k'o 
+    # Kɛ a => k'a 
+
+    # k' as infinitive 
+    # k' as verbe 
+
+    # Case of verbe :
+    # A kɛ a la ==> A k'a la
+    # A ye min kɛ a la == > A ye min k'a la
+    # Ka mun kɛ u la == > K'a mun k'u la 
+
+    # Case of Infinitive
+
+    # In that case k' is always equal ka and follow with the voyel that succede
+    # Ka a di a ma => K'a di a ma 
+
+
+
 
     LEGACY_ORTHOGRAPHY = {
         'è': 'ɛ',
