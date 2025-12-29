@@ -102,8 +102,86 @@ class BambaraNormalizer:
     # In that case k' is always equal ka and follow with the voyel that succede
     # Ka a di a ma => K'a di a ma 
 
+    # Here our challence is to identify 
+    #  the nature of k'
+
+    # we know that if infin maker k' is always ka + voyel 
+    # but if it verb it kɛ + voyel
+    # now our challenge will be to determiine whatever it's a infin maker or a verbe how to do that ?
+    
+    # Infin case : k'+voyel +verb (infin), eg : K'a a ta = Ka a(the voyel) ta(verbe to take)
+    # verb case: Subject|Questions : 
+
+    # O kɛ a yɛrɛ de la = (Complement)| subject + k' + voyel + Complement
+    
 
 
+
+
+    """
+    BAMBARA k' CONTRACTION DISAMBIGUATION RULES
+    ============================================
+
+    The contraction k' can come from TWO different sources:
+    1. ka (infinitive marker)
+    2. kɛ (verb "to do/make/happen")
+
+    RULE: Look at what follows k' + vowel
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    CASE 1: INFINITIVE MARKER (ka)
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Pattern: k' + vowel + VERB
+
+    Contraction: ka + [vowel-initial word] → k' + vowel
+
+    Examples:
+        Ka a ta    →  K'a ta     "to take it"
+        Ka a di    →  K'a di     "to give it"
+        Ka a fɔ    →  K'a fɔ     "to say it"
+        Ka i ye    →  K'i ye     "to see you"
+        Ka u weele →  K'u weele  "to call them"
+
+    Full sentence examples:
+        N bɛ se ka a ta    →  N bɛ se k'a ta    "I can take it"
+        A nana ka a ye     →  A nana k'a ye     "He came to see it"
+        I ka kan ka a fɔ   →  I ka kan k'a fɔ   "You should say it"
+
+    Key identifier: The word AFTER k'+vowel is a VERB (ta, di, fɔ, ye, weele...)
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    CASE 2: VERB kɛ (to do/make/happen/put)
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Pattern: k' + vowel + POSTPOSITION/COMPLEMENT
+
+    Contraction: kɛ + [vowel-initial word] → k' + vowel
+
+    Examples:
+        kɛ a la      →  k'a la      "do it there"
+        kɛ a ma      →  k'a ma      "do it to him"
+        kɛ a ye      →  k'a ye      "make it as" (resultative)
+        kɛ o la      →  k'o la      "do that there"
+        kɛ a yɛrɛ la →  k'a yɛrɛ la "do it itself there"
+
+    Full sentence examples:
+        A ye a kɛ a la        →  A y'a k'a la       "He did it there"
+        O kɛ a yɛrɛ de la     →  O k'a yɛrɛ de la   "That happens by itself there"
+        U bɛ a kɛ jugu ye     →  U b'a k'jugu ye    "They make it an enemy"
+        I bɛ kɔgɔ kɛ a la     →  I bɛ kɔgɔ k'a la   "Put salt in it"
+
+    Key identifier: The word AFTER k'+vowel is a POSTPOSITION (la, ma, ye, fɛ, kɔnɔ...)
+                    or a NOMINAL COMPLEMENT (yɛrɛ, jugu, etc.)
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    SUMMARY DISAMBIGUATION RULE
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        k' + vowel + VERB          →  ka (infinitive marker)
+        k' + vowel + POSTPOSITION  →  kɛ (verb "to do")
+        k' + vowel + NOUN/OTHER    →  kɛ (verb "to do")
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    """
 
     LEGACY_ORTHOGRAPHY = {
         'è': 'ɛ',
