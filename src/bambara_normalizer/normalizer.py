@@ -95,6 +95,7 @@ class BambaraNormalizer:
     # A kɛ a la ==> A k'a la
     # A ye min kɛ a la == > A ye min k'a la
     # Ka mun kɛ u la == > K'a mun k'u la 
+    # A bɛ o kɛ a yɛrɛ de la => a b'o k'a yɛrɛ de la.
 
     # Case of Infinitive
 
