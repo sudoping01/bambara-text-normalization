@@ -1,68 +1,63 @@
-# Bambara Text Normalizer
+<h1 align="center">
+    Bambara Text Normalizer
+</h1>
 
-Text normalization tools for Bambara (Bamanankan) designed for ASR evaluation. Handles contractions, special characters, tone marks, and orthographic variations that affect WER/CER calculations.
+<p align="center">
+    <em>Text normalization for Bambara (Bamanankan)</em>
+</p>
 
-## Project Description
+<p align="center">
+    <a href="#installation">Installation</a> •
+    <a href="#usage">Usage</a> •
+    <a href="#linguistic-decisions">Linguistic Decisions</a> •
+    <a href="#evaluation-metrics">Metrics</a> •
+    <a href="#references">References</a>
+</p>
 
-ASR systems for Bambara face evaluation challenges due to orthographic inconsistencies between reference transcriptions and model outputs. Common issues include:
+---
 
-- Contracted forms (`b'a`) vs expanded forms (`bɛ a`)
-- Legacy orthography (`ny`, `è`) vs modern standard (`ɲ`, `ɛ`)
-- Inconsistent tone marking
-- Apostrophe encoding variants
+<p align="justify">
+ASR evaluation for Bambara faces a fundamental challenge: <b>orthographic variation</b>. The same spoken utterance can be written multiple ways contracted (<code>k'a ta</code>) or expanded (<code>ka a ta</code>), with legacy orthography (<code>ny</code>) or modern standard (<code>ɲ</code>), with or without tone marks. These are not transcription errors but valid writing conventions.
+</p>
 
-This normalizer provides consistent text preprocessing for fair WER/CER evaluation, along with evaluation utilities built on [jiwer](https://github.com/jitsi/jiwer).
+<p align="justify">
+Without normalization, WER metrics <b>penalize models for human inconsistency</b>, not actual recognition errors. This tool provides linguistically-informed text preprocessing for fair ASR evaluation, built on <a href="https://github.com/jitsi/jiwer">jiwer</a>.
+</p>
+
+---
 
 ## Installation
 ```bash
-# NOT PUSHED ON PIPY YET (COMMING SOON)
-pip install bambara-normalizer
-```
-
-Or from source:
-```bash
-git clone https://github.com/MALIBA-AI/bambara-normalizer.git
-cd bambara-normalizer
-pip install -e .
+pip install git+https://github.com/sudoping01/bambara-text-normalization.git
 ```
 
 ## Usage
 
-### Text Normalization
+#### Basic Normalization
 ```python
 from bambara_normalizer import BambaraNormalizer
 
 normalizer = BambaraNormalizer()
-normalizer("B'a fɔ́")      # "bɛ a fɔ́"
-normalizer("nyama bèlè")  # "ɲama bɛlɛ"
+normalizer("B'a fɔ")      # → "bɛ a fɔ"
+normalizer("nyama bèlè")  # → "ɲama bɛlɛ"
 ```
 
-### ASR Evaluation
+#### ASR Evaluation
 ```python
 from bambara_normalizer import BambaraEvaluator
 
 evaluator = BambaraEvaluator()
-result = evaluator.evaluate(reference="B'a fɔ́", hypothesis="bɛ a fɔ")
+result = evaluator.evaluate(reference="B'a fɔ", hypothesis="bɛ a fɔ")
 
 print(f"WER: {result.wer:.2%}")
 print(f"CER: {result.cer:.2%}")
 ```
 
-### Batch Evaluation
-```python
-references = ["B'a fɔ́", "n tɛ a lon", "a yé a fɔ"]
-hypotheses = ["bɛ a fɔ", "n tɛ a lon", "a ye a fɔ"]
-
-aggregate, individual = evaluator.evaluate_batch(references, hypotheses)
-```
-
-### Configuration
-
-The normalizer supports different presets depending on your use case:
+#### Configuration Presets
 ```python
 from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
 
-# Aggressive normalization for WER (removes tones)
+# For WER evaluation (removes tones)
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_wer_evaluation())
 
 # Preserve tone marks
@@ -72,42 +67,82 @@ normalizer = BambaraNormalizer(BambaraNormalizerConfig.preserving_tones())
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.minimal())
 ```
 
-### Command Line
+#### Command Line
 ```bash
 bambara-normalize "B'a fɔ́"
-bambara-normalize --preset wer "Ń t'à lɔ̀n"
+bambara-normalize --preset wer "N t'a don"
 bambara-normalize --evaluate reference.txt hypothesis.txt
 ```
 
-## Normalization Rules
+---
 
-### Contractions
+## Linguistic Decisions
+
+### Why Normalize?
+
+Bambara orthography allows variation. For the same spoken speech:
+- Annotator A writes: `k'a ta`
+- Annotator B writes: `ka a ta`
+
+**Both are correct.** You see both styles in published texts (stories, documents, datasets ...). Without normalization, we penalize the model for something that is not its fault, the inconsistency is in human writing conventions, not in speech recognition.
+
+### Contraction Expansion
 
 | Input | Output | Function |
 |-------|--------|----------|
 | `b'` | `bɛ` | Affirmative imperfective |
 | `t'` | `tɛ` | Negative imperfective |
-| `y'` | `yé` | Perfective marker |
+| `y'` | `ye` | Perfective marker |
 | `n'` | `ni` | Conjunction |
-| `k'` | `ka` | Infinitive/subjunctive |
+| `k'` | `ka` / `kɛ` | Context-dependent (see below) |
 
-### Orthography
+### k' Disambiguation
 
-| Legacy | Modern |
-|--------|--------|
-| `è` | `ɛ` |
-| `ò` | `ɔ` |
-| `ny` | `ɲ` |
-| `ng` | `ŋ` |
-| `ñ` | `ɲ` |
+The contraction `k'` is ambiguous it can derive from two sources:
+
+| Source | Meaning | Example |
+|--------|---------|---------|
+| `ka` | Infinitive marker | `k'a ta` → `ka a ta` |
+| `kɛ` | Verb "to do/make" | `k'a la` → `kɛ a la` |
+
+**Disambiguation rule** (derived from [Daba grammar](https://github.com/maslinych/daba)):
+```
+k' + vowel + POSTPOSITION  →  kɛ (verb)
+k' + vowel + VERB/OTHER    →  ka (infinitive, default)
+```
+
+Postpositions form a **closed class** in Bambara (~20 words: `la`, `ma`, `ye`, `fɛ`, `kɔnɔ`, etc.), making rule-based disambiguation feasible. Verbs are an open class and cannot be exhaustively listed.
+
+| Input | Output | Reason |
+|-------|--------|--------|
+| `k'a la` | `kɛ a la` | `la` is postposition |
+| `k'a ma` | `kɛ a ma` | `ma` is postposition |
+| `k'a ta` | `ka a ta` | `ta` is verb |
+| `k'a fɔ` | `ka a fɔ` | `fɔ` is verb |
+
+### Legacy Orthography
+
+| Legacy | Modern | Notes |
+|--------|--------|-------|
+| `è` | `ɛ` | Pre-standard spelling |
+| `ò` | `ɔ` | Pre-standard spelling |
+| `ny` | `ɲ` | Digraph → single character |
+| `ng` | `ŋ` | Digraph → single character |
+| `ñ` | `ɲ` | Senegalese variant |
+
+---
 
 ## Evaluation Metrics
 
-- **WER**: Word Error Rate
-- **CER**: Character Error Rate  
-- **MER**: Match Error Rate
-- **WIL**: Word Information Lost
-- **DER**: Diacritic Error Rate (tone mark accuracy)
+| Metric | Description |
+|--------|-------------|
+| **WER** | Word Error Rate |
+| **CER** | Character Error Rate |
+| **MER** | Match Error Rate |
+| **WIL** | Word Information Lost |
+| **DER** | Diacritic Error Rate (tone accuracy) |
+
+---
 
 ## Running Tests
 ```bash
@@ -115,13 +150,30 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
+---
+
 ## References
 
-- [Bambara Reference Corpus](http://cormand.huma-num.fr/)
-- [Daba Morphological Analyzer](https://github.com/maslinych/daba)
+#### Linguistic Resources
+- [Bambara Reference Corpus](http://cormand.huma-num.fr/)  Primary corpus for Bambara
+- [Daba Morphological Analyzer](https://github.com/maslinych/daba)  Grammar rules for disambiguation
+- DNAFLA / AMALAN  Bambara standardization body
+
+#### Standards
 - UNESCO Bamako Meeting (1966)
 - Niamey African Reference Alphabet (1978)
 
+#### Tools
+- [jiwer](https://github.com/jitsi/jiwer)  ASR evaluation metrics
+
+---
+
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+    <a href="https://github.com/MALIBA-AI">MALIBA-AI</a>
+</p>
