@@ -6,15 +6,15 @@ from typing import Optional, Dict, List
 
 from .config import BambaraNormalizerConfig
 
+
 class BambaraNormalizer:
-    """Bambara text normalizer for ASR evaluation.
+    """Bambara text normalization.
 
     Handles Bambara-specific linguistic features including:
     - Special characters: ɛ, ɔ, ɲ, ŋ
-    - Grammatical contractions: b', t', y', n', k'
+    - Grammatical contractions: b', t', y', n', k' (with disambiguation)
     - Tone diacritics: à, á, è, é, etc.
     - Legacy orthography: è→ɛ, ny→ɲ, ng→ŋ
-    - Number words in Bambara
 
     Example:
         >>> normalizer = BambaraNormalizer()
@@ -26,6 +26,7 @@ class BambaraNormalizer:
         'n tɛ a lɔn'
     """
 
+
     SPECIAL_CHARS = {
         'ɛ': '\u025B',
         'Ɛ': '\u0190',
@@ -36,7 +37,7 @@ class BambaraNormalizer:
         'ŋ': '\u014B',
         'Ŋ': '\u014A',
     }
-    
+
 
     APOSTROPHE_VARIANTS = [
         '\u0027',
@@ -46,81 +47,68 @@ class BambaraNormalizer:
         '\u0060',
         '\u00B4',
         '\u2032', 
-        '\uFF07',  
+        '\uFF07', 
         '\u02B9', 
-        '\u02BB', 
+        '\u02BB',
     ]
-    
 
-    CONTRACTIONS = {
+    # =========================================================================
+    # POSTPOSITIONS (closed class - from Daba grammar)
+    # Used for k' disambiguation: k' + vowel + PP → kɛ (verb "to do")
+    # =========================================================================
+    POSTPOSITIONS = {
+        'la', 'na',
+        'ma',
+        'ye',
+        'fɛ',
+        'kɔnɔ',
+        'kan',
+        'kɔ',
+        'kɔrɔ',
+        'da', 'daa',
+        'kun',
+        'ɲɛ', 'ɲɛɛ',
+        'bolo',
+        'sɛmɛ',
+        'cɛ', 'cɛma',
+        'kosɔn',
+        'yɛrɛ',
+    }
+
+
+    SIMPLE_CONTRACTIONS = {
         "b'": "bɛ ",
         "t'": "tɛ ",
         "y'": "ye ",
         "n'": "ni ",
-        "k'": "ka ",
         "m'": "ma ",
         "s'": "sa ",
     }
-    
+
 
     EXTENDED_CONTRACTIONS = {
         "b'a": "bɛ a",
         "t'a": "tɛ a",
         "y'a": "ye a",
         "n'a": "ni a",
-        "k'a": "ka a",
         "b'i": "bɛ i",
         "t'i": "tɛ i",
         "y'i": "ye i",
         "n'i": "ni i",
-        "k'i": "ka i",
         "b'o": "bɛ o",
         "t'o": "tɛ o",
-        "k'o": "ka o",
-        "k'u": "ka u",
-        # "k'a": "kɛ a", I need to see how I'm gonna handle this one : we can have a k'a la  ==> a kɛ a la
         "n'o": "ni o",
         "n'u": "ni u",
+        "b'u": "bɛ u",
+        "t'u": "tɛ u",
+        "y'o": "ye o",
+        "y'u": "ye u",
     }
 
-
-    # NOTE FOR MYSELF: 
-    # Kɛ o => k'o 
-    # Kɛ a => k'a 
-
-    # k' as infinitive 
-    # k' as verbe 
-
-    # Case of verbe :
-    # A kɛ a la ==> A k'a la
-    # A ye min kɛ a la == > A ye min k'a la
-    # Ka mun kɛ u la == > K'a mun k'u la 
-    # A bɛ o kɛ a yɛrɛ de la => a b'o k'a yɛrɛ de la.
-
-    # Case of Infinitive
-
-    # In that case k' is always equal ka and follow with the voyel that succede
-    # Ka a di a ma => K'a di a ma 
-
-    # Here our challence is to identify 
-    #  the nature of k'
-
-    # we know that if infin maker k' is always ka + voyel 
-    # but if it verb it kɛ + voyel
-    # now our challenge will be to determiine whatever it's a infin maker or a verbe how to do that ?
-    
-    # Infin case : k'+voyel +verb (infin), eg : K'a a ta = Ka a(the voyel) ta(verbe to take)
-    # verb case: Subject|Questions : 
-
-    # O kɛ a yɛrɛ de la = (Complement)| subject + k' + voyel + Complement
-    
-
-
-
-
     """
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     BAMBARA k' CONTRACTION DISAMBIGUATION RULES
-    ============================================
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     The contraction k' can come from TWO different sources:
     1. ka (infinitive marker)
@@ -128,60 +116,27 @@ class BambaraNormalizer:
 
     RULE: Look at what follows k' + vowel
 
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     CASE 1: INFINITIVE MARKER (ka)
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     Pattern: k' + vowel + VERB
-
-    Contraction: ka + [vowel-initial word] → k' + vowel
-
     Examples:
-        Ka a ta    →  K'a ta     "to take it"
-        Ka a di    →  K'a di     "to give it"
-        Ka a fɔ    →  K'a fɔ     "to say it"
-        Ka i ye    →  K'i ye     "to see you"
-        Ka u weele →  K'u weele  "to call them"
+        K'a ta     → ka a ta    "to take it"
+        K'a fɔ     → ka a fɔ    "to say it"
+        K'i ye     → ka i ye    "to see you"
 
-    Full sentence examples:
-        N bɛ se ka a ta    →  N bɛ se k'a ta    "I can take it"
-        A nana ka a ye     →  A nana k'a ye     "He came to see it"
-        I ka kan ka a fɔ   →  I ka kan k'a fɔ   "You should say it"
-
-    Key identifier: The word AFTER k'+vowel is a VERB (ta, di, fɔ, ye, weele...)
-
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    CASE 2: VERB kɛ (to do/make/happen/put)
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    Pattern: k' + vowel + POSTPOSITION/COMPLEMENT
-
-    Contraction: kɛ + [vowel-initial word] → k' + vowel
-
+    CASE 2: VERB kɛ (to do/make)
+    Pattern: k' + vowel + POSTPOSITION
     Examples:
-        kɛ a la      →  k'a la      "do it there"
-        kɛ a ma      →  k'a ma      "do it to him"
-        kɛ a ye      →  k'a ye      "make it as" (resultative)
-        kɛ o la      →  k'o la      "do that there"
-        kɛ a yɛrɛ la →  k'a yɛrɛ la "do it itself there"
+        k'a la     → kɛ a la    "do it there"
+        k'a ma     → kɛ a ma    "do it to him"
+        k'a ye     → kɛ a ye    "make it as"
 
-    Full sentence examples:
-        A ye a kɛ a la        →  A y'a k'a la       "He did it there"
-        O kɛ a yɛrɛ de la     →  O k'a yɛrɛ de la   "That happens by itself there"
-        U bɛ a kɛ jugu ye     →  U b'a k'jugu ye    "They make it an enemy"
-        I bɛ kɔgɔ kɛ a la     →  I bɛ kɔgɔ k'a la   "Put salt in it"
-
-    Key identifier: The word AFTER k'+vowel is a POSTPOSITION (la, ma, ye, fɛ, kɔnɔ...)
-                    or a NOMINAL COMPLEMENT (yɛrɛ, jugu, etc.)
-
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    SUMMARY DISAMBIGUATION RULE
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
+    SUMMARY:
         k' + vowel + VERB          →  ka (infinitive marker)
         k' + vowel + POSTPOSITION  →  kɛ (verb "to do")
-        k' + vowel + NOUN/OTHER    →  kɛ (verb "to do")
-
+        k' + vowel + OTHER         →  ka (default - infinitive more common)
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     """
+
 
     LEGACY_ORTHOGRAPHY = {
         'è': 'ɛ',
@@ -204,125 +159,55 @@ class BambaraNormalizer:
         'Ng': 'Ŋ',
         'NG': 'Ŋ',
     }
-    
-    # this might not be necessary but let's add it 
+
     SENEGALESE_VARIANTS = {
         'ñ': 'ɲ',
         'Ñ': 'Ɲ',
     }
 
-   ###################################################
-   # I won't use this part for now                   #
-   # I need to find a generic way to handle numbers  #
-   ###################################################
-
-    NUMBER_WORDS = {
-        '0': 'fu',
-        '1': 'kelen',
-        '2': 'fila',
-        '3': 'saba',
-        '4': 'naani',
-        '5': 'duuru',
-        '6': 'wɔɔrɔ',
-        '7': 'wolonwula',
-        '8': 'segin',
-        '9': 'kɔnɔntɔn',
-        '10': 'tan',
-        '11': 'tan ni kelen',
-        '12': 'tan ni fila',
-        '13': 'tan ni saba',
-        '14': 'tan ni naani',
-        '15': 'tan ni duuru',
-        '16': 'tan ni wɔɔrɔ',
-        '17': 'tan ni wolonwula',
-        '18': 'tan ni segin',
-        '19': 'tan ni kɔnɔntɔn',
-        '20': 'mugan',
-        '30': 'bi saba',
-        '40': 'bi naani',
-        '50': 'bi duuru',
-        '60': 'bi wɔɔrɔ',
-        '70': 'bi wolonwula',
-        '80': 'bi segin',
-        '90': 'bi kɔnɔntɔn',
-        '100': 'kɛmɛ',
-        '1000': 'waa',
-    }
 
     TONE_DIACRITICS = {
-        '\u0300',
-        '\u0301',
-        '\u030C',
-        '\u0302',
-        '\u0304',
+        '\u0300',  
+        '\u0301', 
+        '\u030C', 
+        '\u0302',  
+        '\u0304',  
     }
-
-    TONED_VOWELS = {
-        'à', 'è', 'ì', 'ò', 'ù', 'ɛ̀', 'ɔ̀',
-        'á', 'é', 'í', 'ó', 'ú', 'ɛ́', 'ɔ́',
-        'ǎ', 'ě', 'ǐ', 'ǒ', 'ǔ', 'ɛ̌', 'ɔ̌',
-        'À', 'È', 'Ì', 'Ò', 'Ù', 'Ɛ̀', 'Ɔ̀',
-        'Á', 'É', 'Í', 'Ó', 'Ú', 'Ɛ́', 'Ɔ́',
-    }
-    
 
     PUNCTUATION_CATEGORIES = {'Po', 'Ps', 'Pe', 'Pi', 'Pf', 'Pd', 'Pc'}
-    
-    # It's impossible to handle code switching properly without a full NLP pipeline
-    # FRENCH_LOANWORDS = {
-    #     'télé': 'tele',
-    #     'radio': 'radiyo',
-    #     'école': 'lekɔli',
-    #     'hôpital': 'ɔpitali',
-    #     'monsieur': 'misye',
-    #     'madame': 'madam',
-    #     'merci': 'mɛrsi',
-    #     'bonjour': 'bɔnjur',
-    # }
-    
+
 
     def __init__(self, config: Optional[BambaraNormalizerConfig] = None):
         self.config = config or BambaraNormalizerConfig()
         self._compile_patterns()
-    
+
     def _compile_patterns(self) -> None:
         apostrophe_chars = ''.join(re.escape(c) for c in self.APOSTROPHE_VARIANTS)
         self._apostrophe_pattern = re.compile(f'[{apostrophe_chars}]')
-
         self._whitespace_pattern = re.compile(r'\s+')
-
         self._repetition_pattern = re.compile(r'(.)\1{2,}')
-
         self._number_pattern = re.compile(r'\d+')
-
         self._build_punctuation_pattern()
 
-        self._contraction_patterns = {}
-        for contracted, expanded in {**self.CONTRACTIONS, **self.EXTENDED_CONTRACTIONS}.items():
-            pattern = re.compile(
-                rf"(?:^|(?<=\s))({re.escape(contracted)})",
-                re.IGNORECASE
-            )
-            self._contraction_patterns[pattern] = expanded
-    
     def _build_punctuation_pattern(self) -> None:
         punct_chars = []
-        for i in range(0x10000): # 1×16^4
+        for i in range(0x10000):
             char = chr(i)
             if unicodedata.category(char) in self.PUNCTUATION_CATEGORIES:
                 if char not in self.APOSTROPHE_VARIANTS:
                     punct_chars.append(char)
-        self._punctuation_pattern = re.compile(f'[{"".join(re.escape(c) for c in punct_chars)}]')
-    
+        self._punctuation_pattern = re.compile(
+            f'[{"".join(re.escape(c) for c in punct_chars)}]'
+        )
+
 
     def __call__(self, text: str) -> str:
         return self.normalize(text)
-    
 
     def normalize(self, text: str) -> str:
         if not text:
             return ""
-    
+
         text = unicodedata.normalize('NFC', text)
 
         if self.config.normalize_apostrophes:
@@ -337,79 +222,127 @@ class BambaraNormalizer:
         if self.config.normalize_special_chars:
             text = self._normalize_special_chars(text)
 
-        # if self.config.handle_french_loanwords:
-        #     text = self._normalize_french_loanwords(text)
-
         if self.config.lowercase:
             text = self._lowercase(text)
-    
+
         if not self.config.preserve_tones:
             text = self._remove_tone_marks(text)
         elif self.config.remove_diacritics_except_tones:
             text = self._remove_non_tone_diacritics(text)
-        
+
         if self.config.remove_punctuation:
             text = self._remove_punctuation(text)
-        
-        ###########################################
-        # I'm closing this section off for now,   #
-        # I need to study more NVIDIA ITN rules   #
-        ##########################################
-        # if self.config.expand_numbers:
-        #     text = self._expand_numbers(text)
-        
+
         if self.config.strip_repetitions:
             text = self._strip_repetitions(text)
-        
 
         if self.config.normalize_compounds:
             text = self._normalize_compounds(text)
-        
+
         if self.config.normalize_whitespace:
             text = self._normalize_whitespace(text)
-        
+
         return text
-    
+
+
     def _normalize_apostrophes(self, text: str) -> str:
         return self._apostrophe_pattern.sub("'", text)
-    
+
+
     def _expand_contractions(self, text: str) -> str:
         """
-             b' ==> bɛ, t' ==> tɛ, y' ==> ye, n' ==> ni, k' ==> ka
+        Expand Bambara contractions.
+        - b' → bɛ
+        - t' → tɛ
+        - y' → ye
+        - n' → ni
+        - m' → ma
+        - k' → ka OR kɛ (disambiguated by following word)
         """
+
+        text = self._expand_k_contraction(text)
         for contracted, expanded in self.EXTENDED_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
 
-        for contracted, expanded in self.CONTRACTIONS.items():
+        for contracted, expanded in self.SIMPLE_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
-        
-        return text
-    
-    def _normalize_legacy_orthography(self, text: str) -> str:
-        """Convert old bambara orthography to modern bambara standard.
-        """
 
+        return text
+
+    def _expand_k_contraction(self, text: str) -> str:
+        """
+        Rules (from Daba grammar analysis):
+        - k' + vowel + POSTPOSITION → kɛ + vowel (verb "to do/make")
+        - k' + vowel + VERB/OTHER → ka + vowel (infinitive marker)
+
+        Examples:
+            k'a la   → kɛ a la   (do it there)
+            k'a ta   → ka a ta  (to take it)
+            k'a fɔ   → ka a fɔ  (to say it)
+            k'a ma   → kɛ a ma  (do it to him)
+        """
+        words = text.split()
+        result = []
+        i = 0
+
+        while i < len(words):
+            word = words[i]
+
+            k_match = re.match(r"k'([aeiouɛɔ])(.*)", word, re.IGNORECASE)
+
+            if k_match:
+                vowel = k_match.group(1)
+                remainder = k_match.group(2) or ""
+
+                if i + 1 < len(words):
+                    next_word = words[i + 1]
+                    next_word_base = self._strip_tones_and_punct(next_word.lower())
+
+                    if next_word_base in self.POSTPOSITIONS:
+                        expanded = f"kɛ {vowel}{remainder}"
+                    else:
+                        expanded = f"ka {vowel}{remainder}"
+                else:
+                    expanded = f"ka {vowel}{remainder}"
+
+                result.append(expanded)
+            else:
+                result.append(word)
+
+            i += 1
+
+        return ' '.join(result)
+
+    def _strip_tones(self, word: str) -> str:
+        nfd = unicodedata.normalize('NFD', word)
+        return ''.join(c for c in nfd if c not in self.TONE_DIACRITICS)
+
+    def _strip_tones_and_punct(self, word: str) -> str:
+        nfd = unicodedata.normalize('NFD', word)
+        word = ''.join(c for c in nfd if c not in self.TONE_DIACRITICS)
+        word = unicodedata.normalize('NFC', word)
+        return ''.join(c for c in word if unicodedata.category(c) not in self.PUNCTUATION_CATEGORIES)
+
+
+    def _normalize_legacy_orthography(self, text: str) -> str:
         for old, new in self.LEGACY_DIGRAPHS.items():
             text = text.replace(old, new)
-        
+
         for old, new in self.LEGACY_ORTHOGRAPHY.items():
             text = text.replace(old, new)
-        
-        for old, new in self.SENEGALESE_VARIANTS.items():  # might not be necessay but let's keep it
-            text = text.replace(old, new)
-        
-        return text
-    
 
-    ####################################
-    # INNEFICIENT BUT I WILL COME BACK #
-    ####################################
+        for old, new in self.SENEGALESE_VARIANTS.items():
+            text = text.replace(old, new)
+
+        return text
+
+
     def _normalize_special_chars(self, text: str) -> str:
         result = []
         for char in text:
-            if char in 'εЄє':  
+            if char in 'εЄє':
                 result.append('ɛ')
             elif char in 'ΕЭэ':
                 result.append('Ɛ')
@@ -422,20 +355,12 @@ class BambaraNormalizer:
         return text.lower()
 
     def _remove_tone_marks(self, text: str) -> str:
-        """Remove all tone diacritics from text.
-         This is useful for WER evaluation when tone marking is inconsistent.
-        """
         text = unicodedata.normalize('NFD', text)
-
-        result = []
-        for char in text:
-            if char not in self.TONE_DIACRITICS:
-                result.append(char)
+        result = [c for c in text if c not in self.TONE_DIACRITICS]
         return unicodedata.normalize('NFC', ''.join(result))
 
     def _remove_non_tone_diacritics(self, text: str) -> str:
         text = unicodedata.normalize('NFD', text)
-
         result = []
         for char in text:
             category = unicodedata.category(char)
@@ -443,25 +368,14 @@ class BambaraNormalizer:
                 result.append(char)
         return unicodedata.normalize('NFC', ''.join(result))
 
+
     def _remove_punctuation(self, text: str) -> str:
         return self._punctuation_pattern.sub('', text)
-
-    # I will reimplement properly this section later
-    # def _expand_numbers(self, text: str) -> str:
-    #     def replace_number(match: re.Match) -> str:
-    #         num_str = match.group(0)
-
-    #         if num_str in self.NUMBER_WORDS:
-    #             return self.NUMBER_WORDS[num_str]
-           
-    #         return ' '.join(self.NUMBER_WORDS.get(d, d) for d in num_str)
-        
-    #     return self._number_pattern.sub(replace_number, text)
 
 
     def _strip_repetitions(self, text: str) -> str:
         return self._repetition_pattern.sub(r'\1\1', text)
-    
+
     def _normalize_compounds(self, text: str) -> str:
         compounds = [
             (r'\b(bi)\s+(saba|naani|duuru|wɔɔrɔ|wolonwula|segin|kɔnɔntɔn)\b', r'\1\2'),
@@ -480,7 +394,6 @@ class BambaraNormalizer:
         result = self.normalize(text)
         self.config = original_config
         return result
-
 
     def normalize_batch(self, texts: List[str]) -> List[str]:
         return [self.normalize(text) for text in texts]
@@ -523,19 +436,18 @@ class BambaraNormalizer:
         return result
 
 
-def create_normalizer(
-    preset: str = "standard",
-    **kwargs
-) -> BambaraNormalizer:
-    """Factory function to create a normalizer with preset configuration.
-    
+
+def create_normalizer(preset: str = "standard", **kwargs) -> BambaraNormalizer:
+    """
+    Factory function to create a normalizer with preset configuration.
+
     Args:
         preset: One of "standard", "wer", "cer", "preserving_tones", "minimal"
         **kwargs: Override specific configuration options
-        
+
     Returns:
         Configured BambaraNormalizer instance.
-        
+
     Example:
         >>> normalizer = create_normalizer("wer", preserve_tones=True)
     """
@@ -546,10 +458,10 @@ def create_normalizer(
         "preserving_tones": BambaraNormalizerConfig.preserving_tones,
         "minimal": BambaraNormalizerConfig.minimal,
     }
-    
+
     if preset not in presets:
         raise ValueError(f"Unknown preset: {preset}. Choose from: {list(presets.keys())}")
-    
+
     config = presets[preset]()
 
     for key, value in kwargs.items():
@@ -557,5 +469,5 @@ def create_normalizer(
             setattr(config, key, value)
         else:
             raise ValueError(f"Unknown configuration option: {key}")
-    
+
     return BambaraNormalizer(config)
