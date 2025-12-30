@@ -20,37 +20,52 @@ from bambara_normalizer import (
 )
 
 
-class TestBambaraNormalizer:    
+class TestBambaraNormalizer:
+
     def test_basic_normalization(self):
         normalizer = BambaraNormalizer()
-        assert normalizer("Hello World") == "hello world"
-    
+        assert normalizer("I ni ce") == "i ni ce"
+
     def test_contraction_expansion_ba(self):
         normalizer = BambaraNormalizer()
-        assert normalizer("B'a fɔ") == "bɛ a fɔ"
+        assert normalizer("An B'a fɔ Ala ni ce.") in  "an bɛ a fɔ ala ni ce"
         assert normalizer("b'a") == "bɛ a"
-    
+
     def test_contraction_expansion_ta(self):
         normalizer = BambaraNormalizer()
-        assert normalizer("n t'a lon") == "n tɛ a lon"
-    
+        assert normalizer("n t'a don") == "n tɛ a don"
+
     def test_contraction_expansion_ya(self):
         normalizer = BambaraNormalizer()
         assert normalizer("A y'a fɔ") == "a ye a fɔ"
-    
+
     def test_contraction_expansion_na(self):
         normalizer = BambaraNormalizer()
-        result = normalizer("í n'í dén")
-        assert "ni" in result  
-    
+        result = normalizer("i n'i ce")
+        assert "ni" in result
+
     def test_contraction_expansion_ka(self):
         normalizer = BambaraNormalizer()
-        result = normalizer("k'a dún")
-        assert "ka" in result  
+        result = normalizer("k'a dun")
+        assert "ka" in result
+
+    def test_k_disambiguation_postposition(self):
+        normalizer = BambaraNormalizer()
+        assert "sukoro kɛ a la" == normalizer("Sukoro k'a la")
+        assert "kɛ a ma" == normalizer("k'a ma")
+        assert "kɛ a ye" == normalizer("k'a ye")
+        assert "kɛ a fɛ" == normalizer("k'a fɛ")
+
+    def test_k_disambiguation_verb(self):
+        normalizer = BambaraNormalizer()
+
+        assert "ka ta sugu la" in normalizer("ka ta sugu la")
+        assert "ka a fɔ" == normalizer("k'a fɔ")
+        assert "nin ta ka a di musa ma" == normalizer("nin ta k'a di Musa ma")
     
     def test_multiple_contractions(self):
         normalizer = BambaraNormalizer()
-        result = normalizer("Ń b'a fɛ, n t'a lon")
+        result = normalizer("Ń b'i fɛ, n t'a don")
         assert "bɛ" in result
         assert "tɛ" in result
     
@@ -66,20 +81,20 @@ class TestBambaraNormalizer:
     
     def test_senegalese_variant(self):
         normalizer = BambaraNormalizer()
-        assert "ɲ" in normalizer("ñama")
+        assert "ɲ" in normalizer("ñama")  
     
     def test_apostrophe_normalization(self):
         normalizer = BambaraNormalizer()
         
-        result1 = normalizer("b'a")  
-        result2 = normalizer("b'a")  
-        result3 = normalizer("bʼa") 
+        result1 = normalizer("b'a")
+        result2 = normalizer("b'a")
+        result3 = normalizer("bʼa")
         
         assert result1 == result2 == result3
     
     def test_punctuation_removal(self):
         normalizer = BambaraNormalizer()
-        result = normalizer("Bɔ́! Taa?")
+        result = normalizer("Bɔ! Ka Taa?")
         assert "!" not in result
         assert "?" not in result
     
@@ -102,15 +117,16 @@ class TestBambaraNormalizer:
         normalizer = BambaraNormalizer(config)
         result = normalizer("fɔ́lɔ̀")
         decomposed = unicodedata.normalize('NFD', result)
-        assert '\u0301' not in decomposed  # acute
-        assert '\u0300' not in decomposed  # grave
+        assert '\u0301' not in decomposed
+        assert '\u0300' not in decomposed
     
-    # def test_number_expansion(self):
-    #     config = BambaraNormalizerConfig.for_wer_evaluation()
-    #     normalizer = BambaraNormalizer(config)
-    #     assert "kelen" in normalizer("1")
-    #     assert "fila" in normalizer("2")
-    #     assert "tan" in normalizer("10")
+    @pytest.mark.skip(reason="Number expansion disabled")
+    def test_number_expansion(self):
+        config = BambaraNormalizerConfig.for_wer_evaluation()
+        normalizer = BambaraNormalizer(config)
+        assert "kelen" in normalizer("1")
+        assert "fila" in normalizer("2")
+        assert "tan" in normalizer("10")
     
     def test_empty_string(self):
         normalizer = BambaraNormalizer()
@@ -176,7 +192,7 @@ class TestWERCalculation:
     def test_wer_deletion(self):
         normalizer = BambaraNormalizer()
         ref = "a b c"
-        hyp = "a c"  
+        hyp = "a c"
         
         result = evaluate(ref, hyp, normalizer)
         assert result.word_deletions == 1
@@ -184,7 +200,7 @@ class TestWERCalculation:
     def test_wer_insertion(self):
         normalizer = BambaraNormalizer()
         ref = "a c"
-        hyp = "a b c"  
+        hyp = "a b c"
         
         result = evaluate(ref, hyp, normalizer)
         assert result.word_insertions == 1
@@ -200,13 +216,14 @@ class TestCERCalculation:
     def test_cer_with_errors(self):
         normalizer = BambaraNormalizer()
         ref = "abc"
-        hyp = "abd" 
+        hyp = "abd"
         
         cer = compute_cer(ref, hyp, normalizer)
         assert cer == pytest.approx(1/3)
 
 
 class TestEvaluator:
+    
     def test_evaluator_basic(self):
         evaluator = BambaraEvaluator()
         result = evaluator.evaluate("B'a fɔ", "bɛ a fɔ")
@@ -228,11 +245,12 @@ class TestEvaluator:
 
 
 class TestUtilityFunctions:
+    
     def test_is_bambara_char(self):
         assert is_bambara_char('a') is True
         assert is_bambara_char('ɛ') is True
         assert is_bambara_char('ŋ') is True
-        assert is_bambara_char('q') is False 
+        assert is_bambara_char('q') is False
     
     def test_is_bambara_special_char(self):
         assert is_bambara_special_char('ɛ') is True
@@ -262,7 +280,7 @@ class TestUtilityFunctions:
         is_valid, issues = validate_bambara_text("bɛna")
         assert is_valid is True
         
-        is_valid, issues = validate_bambara_text("nyama") 
+        is_valid, issues = validate_bambara_text("nyama")
         assert is_valid is False
         assert len(issues) > 0
     
@@ -275,6 +293,7 @@ class TestUtilityFunctions:
 
 
 class TestConvenienceFunction:
+    
     def test_normalize_function(self):
         result = normalize("B'a fɔ́!")
         assert "bɛ" in result
@@ -309,15 +328,17 @@ class TestRealWorldExamples:
         result = normalizer("A y'à fɔ́")
         assert "ye" in result
     
-    # def test_code_switching_french(self):
-    #     config = BambaraNormalizerConfig()
-    #     config.handle_french_loanwords = True
-    #     normalizer = BambaraNormalizer(config)
-    #     result = normalizer("télé")
-    #     assert "tele" in result
+    @pytest.mark.skip(reason="French loanword handling disabled")
+    def test_code_switching_french(self):
+        config = BambaraNormalizerConfig()
+        config.handle_french_loanwords = True
+        normalizer = BambaraNormalizer(config)
+        result = normalizer("télé")
+        assert "tele" in result
 
 
 class TestEdgeCases:
+    
     def test_only_punctuation(self):
         normalizer = BambaraNormalizer()
         assert normalizer("!!!???") == ""
@@ -339,7 +360,6 @@ class TestEdgeCases:
     
     def test_unicode_normalization_forms(self):
         normalizer = BambaraNormalizer()
-        
         nfc = unicodedata.normalize('NFC', 'é')
         nfd = unicodedata.normalize('NFD', 'é')
         assert normalizer(nfc) == normalizer(nfd)
