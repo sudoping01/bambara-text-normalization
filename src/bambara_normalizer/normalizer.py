@@ -1,3 +1,7 @@
+"""
+Bambara (Bamanankan) Text Normalizer for ASR Evaluation.
+"""
+
 from __future__ import annotations
 
 import re
@@ -8,13 +12,13 @@ from .config import BambaraNormalizerConfig
 
 
 class BambaraNormalizer:
-    """Bambara text normalization.
+    """Bambara text normalizer for ASR evaluation.
 
     Handles Bambara-specific linguistic features including:
     - Special characters: ɛ, ɔ, ɲ, ŋ
     - Grammatical contractions: b', t', y', n', k' (with disambiguation)
     - Tone diacritics: à, á, è, é, etc.
-    - Legacy orthography: è→ɛ, ny→ɲ, ng→ŋ
+    - Legacy orthography: è==>ɛ, ny==>ɲ, ng==>ŋ
 
     Example:
         >>> normalizer = BambaraNormalizer()
@@ -46,33 +50,68 @@ class BambaraNormalizer:
         '\u2018',
         '\u0060',
         '\u00B4',
-        '\u2032', 
-        '\uFF07', 
-        '\u02B9', 
+        '\u2032',
+        '\uFF07',
+        '\u02B9',
         '\u02BB',
     ]
 
     # =========================================================================
-    # POSTPOSITIONS (closed class - from Daba grammar)
-    # Used for k' disambiguation: k' + vowel + PP → kɛ (verb "to do")
+    # POSTPOSITIONS COMPATIBLE WITH kɛ (verb "to do/make")
+    # Pattern: k' + vowel + KE_POSTPOSITION ==> kɛ
+    # These are locative/instrumental postpositions used with "do/make"
+    #  'ma' is handled specially - see REPORTED_SPEECH_MARKERS
     # =========================================================================
-    POSTPOSITIONS = {
-        'la', 'na',
-        'ma',
+    KE_POSTPOSITIONS = {
+        'la',
         'ye',
         'fɛ',
         'kɔnɔ',
-        'kan',
         'kɔ',
         'kɔrɔ',
         'da', 'daa',
         'kun',
-        'ɲɛ', 'ɲɛɛ',
+        'ɲɛ', 'ɲɛɛ', 'ɲɛfɛ',
         'bolo',
         'sɛmɛ',
         'cɛ', 'cɛma',
-        'kosɔn',
+        'kɔfɛ',
+        'kosɔn', 'kama',
+    }
+
+    # =========================================================================
+    # REPORTED SPEECH MARKERS (for ko disambiguation after 'ma')
+    # When k' + pronoun + ma + REPORTED_SPEECH_MARKER => ko (to say)
+    # When k' + pronoun + ma + NOUN + ye ==> kɛ (benefactive)
+    # =========================================================================
+    REPORTED_SPEECH_MARKERS = {
+        'ko',
+        'ka',
+        'kana',
+        'tɛ', 'te',
+        'bɛ', 'be',
+        'bɛna', 'bena',
+        'tɛna', 'tena',
+        'tun',
+        'mana',
+    }
+
+    # =========================================================================
+    # CLAUSE MARKERS (closed class: from Daba grammar)
+    # Used for k' disambiguation: k' + vowel + MARKER ==> ko (verb "to say")
+    # These typically introduce subordinate/reported speech clauses
+    # =========================================================================
+    CLAUSE_MARKERS = {
+        'ka',
+        'kana',
+        'tɛ', 'te',
+        'bɛ', 'be',
+        'bɛna', 'bena',
+        'tɛna', 'tena',
+        'tun',
+        'mana',
         'yɛrɛ',
+        'de', 'dɛ',
     }
 
 
@@ -84,7 +123,6 @@ class BambaraNormalizer:
         "m'": "ma ",
         "s'": "sa ",
     }
-
 
     EXTENDED_CONTRACTIONS = {
         "b'a": "bɛ a",
@@ -110,30 +148,56 @@ class BambaraNormalizer:
     BAMBARA k' CONTRACTION DISAMBIGUATION RULES
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    The contraction k' can come from TWO different sources:
+    The contraction k' can come from THREE different sources:
     1. ka (infinitive marker)
     2. kɛ (verb "to do/make/happen")
+    3. ko (verb "to say")
 
-    RULE: Look at what follows k' + vowel
+    RULE: Look at what follows k' + vowel (the word after the pronoun)
 
     CASE 1: INFINITIVE MARKER (ka)
     Pattern: k' + vowel + VERB
     Examples:
-        K'a ta     → ka a ta    "to take it"
-        K'a fɔ     → ka a fɔ    "to say it"
-        K'i ye     → ka i ye    "to see you"
+        k'a ta     ==> ka a ta
+        k'a fɔ     ==> ka a fɔ
+        k'a dun    ==> ka a dun
+        k'a di     ==> ka a di
 
-    CASE 2: VERB kɛ (to do/make)
-    Pattern: k' + vowel + POSTPOSITION
+
+    CASE 2: VERB kɛ
+    Pattern A: k' + vowel + KE_POSTPOSITION (la, ye, fɛ, etc.)
     Examples:
-        k'a la     → kɛ a la    "do it there"
-        k'a ma     → kɛ a ma    "do it to him"
-        k'a ye     → kɛ a ye    "make it as"
+        k'a la     ==> kɛ a la
+        k'a ye     ==> kɛ a ye
+        k'a fɛ     ==> kɛ a fɛ
 
-    SUMMARY:
-        k' + vowel + VERB          →  ka (infinitive marker)
-        k' + vowel + POSTPOSITION  →  kɛ (verb "to do")
-        k' + vowel + OTHER         →  ka (default - infinitive more common)
+
+    Pattern B: k' + vowel + ma + NOUN + ye (benefactive)
+    Examples:
+        k'a ma hɛrɛ ye     ==> kɛ a ma hɛrɛ ye
+        k'a ma tasuma ye   ==> kɛ a ma tasuma ye
+        k'u ma yɛrɛ ye     ==> kɛ u ma yɛrɛ ye
+
+
+    CASE 3: VERB ko (to say) - reported speech
+    Pattern A: k' + vowel + CLAUSE_MARKER (ka, kana, bɛ, tɛ, etc.)
+    Examples:
+        k'an kana  ==> ko an kana   "said we shouldn't"
+        k'an ka ta ==> ko an ka ta  "said we should take"
+        k'u ka na  ==> ko u ka na   "said they should come"
+        k'ale yɛrɛ ==> ko ale yɛrɛ  "said he himself"
+
+
+    Pattern B: k' + vowel + ma + REPORTED_SPEECH_MARKER
+    Examples:
+        k'anw ma ko...  ==> ko anw ma ko...  "said to us that..."
+
+    DISAMBIGUATION PRIORITY:
+        1. k' + vowel + ma + X + ye         ==>  kɛ (benefactive)
+        2. k' + vowel + ma + SPEECH_MARKER  ==>  ko (reported speech)
+        3. k' + vowel + KE_POSTPOSITION     ==>  kɛ (verb "to do")
+        4. k' + vowel + CLAUSE_MARKER       ==>  ko (verb "to say")
+        5. k' + vowel + OTHER (verb)        ==>  ka (infinitive, DEFAULT)
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     """
 
@@ -151,6 +215,7 @@ class BambaraNormalizer:
         'э': 'ɛ',
     }
 
+    # this two section may be removed in next version [due to someone disagrement]
     LEGACY_DIGRAPHS = {
         'ny': 'ɲ',
         'Ny': 'Ɲ',
@@ -167,11 +232,11 @@ class BambaraNormalizer:
 
 
     TONE_DIACRITICS = {
-        '\u0300',  
-        '\u0301', 
-        '\u030C', 
-        '\u0302',  
-        '\u0304',  
+        '\u0300',
+        '\u0301',
+        '\u030C',
+        '\u0302',
+        '\u0304',
     }
 
     PUNCTUATION_CATEGORIES = {'Po', 'Ps', 'Pe', 'Pi', 'Pf', 'Pd', 'Pc'}
@@ -199,7 +264,6 @@ class BambaraNormalizer:
         self._punctuation_pattern = re.compile(
             f'[{"".join(re.escape(c) for c in punct_chars)}]'
         )
-
 
     def __call__(self, text: str) -> str:
         return self.normalize(text)
@@ -250,17 +314,8 @@ class BambaraNormalizer:
 
 
     def _expand_contractions(self, text: str) -> str:
-        """
-        Expand Bambara contractions.
-        - b' → bɛ
-        - t' → tɛ
-        - y' → ye
-        - n' → ni
-        - m' → ma
-        - k' → ka OR kɛ (disambiguated by following word)
-        """
-
         text = self._expand_k_contraction(text)
+
         for contracted, expanded in self.EXTENDED_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
@@ -272,17 +327,6 @@ class BambaraNormalizer:
         return text
 
     def _expand_k_contraction(self, text: str) -> str:
-        """
-        Rules (from Daba grammar analysis):
-        - k' + vowel + POSTPOSITION → kɛ + vowel (verb "to do/make")
-        - k' + vowel + VERB/OTHER → ka + vowel (infinitive marker)
-
-        Examples:
-            k'a la   → kɛ a la   (do it there)
-            k'a ta   → ka a ta  (to take it)
-            k'a fɔ   → ka a fɔ  (to say it)
-            k'a ma   → kɛ a ma  (do it to him)
-        """
         words = text.split()
         result = []
         i = 0
@@ -290,22 +334,43 @@ class BambaraNormalizer:
         while i < len(words):
             word = words[i]
 
-            k_match = re.match(r"k'([aeiouɛɔ])(.*)", word, re.IGNORECASE)
+            k_match = re.match(r"k'([aeiouɛɔ]\w*)", word, re.IGNORECASE)
 
             if k_match:
-                vowel = k_match.group(1)
-                remainder = k_match.group(2) or ""
+                pronoun = k_match.group(1)
 
                 if i + 1 < len(words):
                     next_word = words[i + 1]
                     next_word_base = self._strip_tones_and_punct(next_word.lower())
 
-                    if next_word_base in self.POSTPOSITIONS:
-                        expanded = f"kɛ {vowel}{remainder}"
+                    if next_word_base == 'ma':
+                        if i + 2 < len(words):
+                            word_after_ma = words[i + 2]
+                            word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
+
+                            if i + 3 < len(words):
+                                third_word = words[i + 3]
+                                third_word_base = self._strip_tones_and_punct(third_word.lower())
+                                if third_word_base == 'ye':
+                                    expanded = f"kɛ {pronoun}"
+                                elif word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
+                                    expanded = f"ko {pronoun}"
+                                else:
+                                    expanded = f"kɛ {pronoun}"
+                            elif word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
+                                expanded = f"ko {pronoun}"
+                            else:
+                                expanded = f"kɛ {pronoun}"
+                        else:
+                            expanded = f"kɛ {pronoun}"
+                    elif next_word_base in self.KE_POSTPOSITIONS:
+                        expanded = f"kɛ {pronoun}"
+                    elif next_word_base in self.CLAUSE_MARKERS:
+                        expanded = f"ko {pronoun}"
                     else:
-                        expanded = f"ka {vowel}{remainder}"
+                        expanded = f"ka {pronoun}"
                 else:
-                    expanded = f"ka {vowel}{remainder}"
+                    expanded = f"ka {pronoun}"
 
                 result.append(expanded)
             else:
@@ -324,7 +389,6 @@ class BambaraNormalizer:
         word = ''.join(c for c in nfd if c not in self.TONE_DIACRITICS)
         word = unicodedata.normalize('NFC', word)
         return ''.join(c for c in word if unicodedata.category(c) not in self.PUNCTUATION_CATEGORIES)
-
 
     def _normalize_legacy_orthography(self, text: str) -> str:
         for old, new in self.LEGACY_DIGRAPHS.items():
@@ -371,7 +435,6 @@ class BambaraNormalizer:
 
     def _remove_punctuation(self, text: str) -> str:
         return self._punctuation_pattern.sub('', text)
-
 
     def _strip_repetitions(self, text: str) -> str:
         return self._repetition_pattern.sub(r'\1\1', text)
