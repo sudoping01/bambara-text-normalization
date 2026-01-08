@@ -114,33 +114,46 @@ class BambaraNormalizer:
         'de', 'dɛ',
     }
 
-
+    # =========================================================================
+    # SIMPLE CONTRACTIONS (non-k')
+    # =========================================================================
     SIMPLE_CONTRACTIONS = {
         "b'": "bɛ ",
         "t'": "tɛ ",
         "y'": "ye ",
-        "n'": "ni ",
         "m'": "ma ",
         "s'": "sa ",
     }
 
+    # =========================================================================
+    # EXTENDED CONTRACTIONS (with specific pronouns)
+    # Note: n' contractions handled separately for na/ni disambiguation
+    # =========================================================================
     EXTENDED_CONTRACTIONS = {
         "b'a": "bɛ a",
         "t'a": "tɛ a",
         "y'a": "ye a",
-        "n'a": "ni a",
         "b'i": "bɛ i",
         "t'i": "tɛ i",
         "y'i": "ye i",
-        "n'i": "ni i",
         "b'o": "bɛ o",
         "t'o": "tɛ o",
-        "n'o": "ni o",
-        "n'u": "ni u",
-        "b'u": "bɛ u",
-        "t'u": "tɛ u",
         "y'o": "ye o",
         "y'u": "ye u",
+        "b'u": "bɛ u",
+        "t'u": "tɛ u",
+    }
+
+    # =========================================================================
+    # CONTRACTION EXPANSION MAP (for lookahead)
+    # Maps contraction prefixes to their expanded forms
+    # =========================================================================
+    CONTRACTION_EXPANSIONS = {
+        "b'": "bɛ",
+        "t'": "tɛ",
+        "y'": "ye",
+        "m'": "ma",
+        "s'": "sa",
     }
 
     """
@@ -314,19 +327,111 @@ class BambaraNormalizer:
 
 
     def _expand_contractions(self, text: str) -> str:
+        # First expand k' contractions (most complex)
         text = self._expand_k_contraction(text)
+        
+        # Then expand n' contractions (na/ni disambiguation)
+        text = self._expand_n_contraction(text)
 
+        # Then other extended contractions
         for contracted, expanded in self.EXTENDED_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
 
+        # Finally simple contractions
         for contracted, expanded in self.SIMPLE_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
 
         return text
 
+    def _get_lookahead_base(self, word: str) -> Optional[str]:
+        """
+        Get the base form of a word for lookahead disambiguation.
+        Expands contractions to their base form.
+        Returns None if the word is a k' contraction (needs recursive prediction).
+        """
+        word_lower = word.lower()
+        
+        # Check if it's a k' contraction - needs special handling
+        if re.match(r"k'[aeiouɛɔ]", word_lower):
+            return None  # Signal that we need to predict k' expansion
+        
+        # Expand other contractions for lookahead
+        for prefix, expanded in self.CONTRACTION_EXPANSIONS.items():
+            if word_lower.startswith(prefix):
+                return expanded
+        
+        # Regular word - strip tones and punctuation
+        return self._strip_tones_and_punct(word_lower)
+
+    def _predict_k_expansion(self, words: List[str], idx: int) -> str:
+        """
+        Predict what a k' contraction at position idx will expand to.
+        Used for recursive lookahead when k' follows k'.
+        Returns 'ka', 'kɛ', or 'ko'.
+        """
+        if idx >= len(words):
+            return "ka"
+        
+        word = words[idx]
+        k_match = re.match(r"k'([aeiouɛɔ]\w*)", word, re.IGNORECASE)
+        if not k_match:
+            return "ka"  # Not a k' contraction
+        
+        # Look at what follows this k' contraction
+        if idx + 1 < len(words):
+            next_word = words[idx + 1]
+            next_base = self._get_lookahead_base(next_word)
+            
+            if next_base is None:
+                # Next word is also a k' contraction - predict recursively
+                predicted_next = self._predict_k_expansion(words, idx + 1)
+                if predicted_next == "ka":
+                    return "ko"  # ka is clause marker
+                else:
+                    return "ka"  # kɛ/ko are not clause markers
+            
+            # Check for postposition
+            if next_base in self.KE_POSTPOSITIONS:
+                return "kɛ"
+            
+            # Check for clause marker
+            if next_base in self.CLAUSE_MARKERS:
+                return "ko"
+            
+            # Check for ma pattern
+            if next_base == 'ma':
+                if idx + 2 < len(words):
+                    word_after_ma = words[idx + 2]
+                    word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
+                    
+                    # Check for benefactive (ma + X + ye)
+                    if idx + 3 < len(words):
+                        third_word = words[idx + 3]
+                        third_word_base = self._strip_tones_and_punct(third_word.lower())
+                        if third_word_base == 'ye':
+                            return "kɛ"
+                    
+                    # Check for reported speech marker after ma
+                    if word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
+                        return "ko"
+                
+                return "kɛ"  # Default for ma pattern
+        
+        return "ka"  # Default
+
     def _expand_k_contraction(self, text: str) -> str:
+        """
+        Expand k' contractions with context-aware disambiguation.
+        
+        Rules (in priority order):
+        1. k' + pronoun + ma + X + ye → kɛ (benefactive)
+        2. k' + pronoun + ma + SPEECH_MARKER → ko (reported speech)
+        3. k' + pronoun + POSTPOSITION → kɛ (do/make)
+        4. k' + pronoun + CLAUSE_MARKER → ko (to say)
+        5. k' + pronoun + other → ka (infinitive, default)
+        """
         words = text.split()
         result = []
         i = 0
@@ -341,13 +446,25 @@ class BambaraNormalizer:
 
                 if i + 1 < len(words):
                     next_word = words[i + 1]
-                    next_word_base = self._strip_tones_and_punct(next_word.lower())
+                    next_word_base = self._get_lookahead_base(next_word)
 
-                    if next_word_base == 'ma':
+                    # Handle case where next word is also a k' contraction
+                    if next_word_base is None:
+                        # Predict what the next k' will become
+                        predicted = self._predict_k_expansion(words, i + 1)
+                        if predicted == "ka":
+                            # ka is a clause marker → ko
+                            expanded = f"ko {pronoun}"
+                        else:
+                            # kɛ or ko are not clause markers → default ka
+                            expanded = f"ka {pronoun}"
+                    elif next_word_base == 'ma':
+                        # Check for benefactive or reported speech patterns
                         if i + 2 < len(words):
                             word_after_ma = words[i + 2]
                             word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
 
+                            # Check for benefactive: ma + X + ye
                             if i + 3 < len(words):
                                 third_word = words[i + 3]
                                 third_word_base = self._strip_tones_and_punct(third_word.lower())
@@ -371,6 +488,47 @@ class BambaraNormalizer:
                         expanded = f"ka {pronoun}"
                 else:
                     expanded = f"ka {pronoun}"
+
+                result.append(expanded)
+            else:
+                result.append(word)
+
+            i += 1
+
+        return ' '.join(result)
+
+    def _expand_n_contraction(self, text: str) -> str:
+        """
+        Expand n' contractions with disambiguation between na (come) and ni (if/and).
+        
+        Rules:
+        1. n' + pronoun + ma → na (come to someone)
+        2. n' + other → ni (conjunction, default)
+        """
+        words = text.split()
+        result = []
+        i = 0
+
+        while i < len(words):
+            word = words[i]
+
+            n_match = re.match(r"n'([aeiouɛɔ]\w*)", word, re.IGNORECASE)
+
+            if n_match:
+                pronoun = n_match.group(1)
+
+                if i + 1 < len(words):
+                    next_word = words[i + 1]
+                    next_word_base = self._strip_tones_and_punct(next_word.lower())
+
+                    if next_word_base == 'ma':
+                        # n' + pronoun + ma → na (come to)
+                        expanded = f"na {pronoun}"
+                    else:
+                        # Default: ni (conjunction)
+                        expanded = f"ni {pronoun}"
+                else:
+                    expanded = f"ni {pronoun}"
 
                 result.append(expanded)
             else:
