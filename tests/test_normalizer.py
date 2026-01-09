@@ -1,22 +1,24 @@
-import pytest
 import unicodedata
+
+import pytest
+
 from bambara_normalizer import (
+    BambaraEvaluator,
     BambaraNormalizer,
     BambaraNormalizerConfig,
-    BambaraEvaluator,
-    create_normalizer,
-    normalize,
-    compute_wer,
+    analyze_text,
     compute_cer,
+    compute_wer,
+    create_normalizer,
     evaluate,
-    is_bambara_char,
-    is_bambara_special_char,
     get_base_char,
     get_tone,
     has_tone_marks,
+    is_bambara_char,
+    is_bambara_special_char,
+    normalize,
     remove_tones,
     validate_bambara_text,
-    analyze_text,
 )
 
 
@@ -262,57 +264,87 @@ class TestKDisambiguation:
 
 class TestNewDisambiguationCases:
     """
+    New test cases for k' and n' disambiguation based on user feedback.
+
     These test cases handle:
     1. k' followed by another k' contraction
     2. Lookahead expansion of contractions (t' → tɛ)
     3. n' → na disambiguation (come to) vs ni (conjunction)
     4. k'i and k'o pronoun handling
     """
-    
+
     def test_k_followed_by_k_contraction_ke(self):
+        """k'o k'a la → ka o kɛ a la (first k' defaults, second k' sees postposition)"""
         normalizer = BambaraNormalizer()
         assert normalizer("Ka na son k'o k'a la") == "ka na son ka o kɛ a la"
-    
+
     def test_k_with_ma_ko_reported_speech(self):
+        """Ne k'a ma ko ayi → Ne ko a ma ko ayi"""
         normalizer = BambaraNormalizer()
         assert normalizer("Ne k'a ma ko ayi") == "ne ko a ma ko ayi"
-    
+
     def test_k_ale_with_expanded_contraction_lookahead(self):
+        """K'ale t'a fɛ k'a kɛ → Ko ale tɛ a fɛ ka a kɛ
+
+        - K'ale: lookahead is t'a, which expands to tɛ (clause marker) → ko
+        - k'a kɛ: lookahead is kɛ (verb), not a clause marker → ka
+        """
         normalizer = BambaraNormalizer()
         assert normalizer("K'ale t'a fɛ k'a kɛ") == "ko ale tɛ a fɛ ka a kɛ"
-    
+
     def test_n_contraction_na_come_to(self):
+        """N'ala son n'a ma → Ni ala son na a ma
+
+        - First n'ala: no 'ma' follows → ni (conjunction)
+        - Second n'a ma: 'ma' follows → na (come to)
+        """
         normalizer = BambaraNormalizer()
         assert normalizer("N'ala son n'a ma") == "ni ala son na a ma"
-    
+
     def test_k_i_pronoun_with_clause_marker(self):
+        """K'i k'i janto i yɛrɛ la → Ko i ka i janto i yɛrɛ la
+
+        - First K'i: lookahead is k'i which predicts to ka (clause marker) → ko
+        - Second k'i: lookahead is janto (regular verb) → ka
+        """
         normalizer = BambaraNormalizer()
         assert normalizer("K'i k'i janto i yɛrɛ la") == "ko i ka i janto i yɛrɛ la"
-    
+
     def test_k_o_pronoun_basic(self):
+        """Test k'o with various following words"""
         normalizer = BambaraNormalizer()
+        # k'o followed by postposition → kɛ
         assert normalizer("k'o la") == "kɛ o la"
+        # k'o followed by verb → ka
         assert normalizer("k'o ta") == "ka o ta"
-    
+
     def test_k_i_pronoun_basic(self):
+        """Test k'i with various following words"""
         normalizer = BambaraNormalizer()
+        # k'i followed by postposition → kɛ
         assert normalizer("k'i la") == "kɛ i la"
+        # k'i followed by verb → ka
         assert normalizer("k'i ta") == "ka i ta"
+        # k'i followed by clause marker → ko
         assert normalizer("k'i ka taa") == "ko i ka taa"
-    
+
     def test_n_disambiguation_ni_default(self):
+        """n' defaults to ni when not followed by pronoun + ma"""
         normalizer = BambaraNormalizer()
         assert normalizer("n'a ta") == "ni a ta"
         assert normalizer("n'i bɛ") == "ni i bɛ"
-    
+
     def test_n_disambiguation_na_with_ma(self):
+        """n' + pronoun + ma → na (come to)"""
         normalizer = BambaraNormalizer()
         assert normalizer("n'a ma") == "na a ma"
         assert normalizer("n'i ma") == "na i ma"
         assert normalizer("n'u ma") == "na u ma"
-    
+
     def test_complex_sentence_multiple_contractions(self):
+        """Test sentence with multiple different contractions"""
         normalizer = BambaraNormalizer()
+        # "Come to him and say to them that they should take it"
         result = normalizer("N'a ma k'u ka a ta")
         assert "na a ma" in result
         assert "ko u ka" in result
@@ -409,11 +441,12 @@ class TestEvaluator:
         assert aggregate.wer == 0.0
         assert len(individual) == 2
 
-    @pytest.mark.skip(reason="Not Implemented yet")
     def test_evaluator_with_der(self):
-        evaluator = BambaraEvaluator(BambaraNormalizerConfig.preserving_tones())
+        evaluator = BambaraEvaluator(config=BambaraNormalizerConfig.preserving_tones())
         result = evaluator.evaluate("fɔ́", "fɔ̀", compute_diacritic_rate=True)
-        assert result.der is None  # DER not yet implemented
+        # DER is now implemented - should detect tone difference
+        assert result.der is not None
+        assert result.der > 0  # Different tones should give non-zero DER
 
 
 class TestUtilityFunctions:
@@ -460,6 +493,7 @@ class TestUtilityFunctions:
         assert 'word_count' in analysis
         assert 'vowel_count' in analysis
         assert 'contractions_found' in analysis
+        # Check that we found a contraction containing b'
         assert any("b'" in c for c in analysis['contractions_found'])
 
 
@@ -511,6 +545,91 @@ class TestRealWorldExamples:
         normalizer = BambaraNormalizer(config)
         result = normalizer("télé")
         assert "tele" in result
+
+
+class TestContractionModes:
+    """Test the new contraction_mode feature: expand, contract, preserve."""
+
+    def test_expand_mode_default(self):
+        """Test that expand mode is the default."""
+        normalizer = BambaraNormalizer()
+        assert normalizer("b'a fɔ") == "bɛ a fɔ"
+
+    def test_expand_mode_explicit(self):
+        """Test expand mode explicitly set."""
+        config = BambaraNormalizerConfig(contraction_mode="expand")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("b'a fɔ") == "bɛ a fɔ"
+        assert normalizer("k'a ta") == "ka a ta"
+        assert normalizer("k'a la") == "kɛ a la"
+
+    def test_contract_mode_simple(self):
+        """Test contract mode with simple cases."""
+        config = BambaraNormalizerConfig(contraction_mode="contract")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("bɛ a fɔ") == "b'a fɔ"
+        assert normalizer("tɛ a don") == "t'a don"
+        assert normalizer("ye a fɔ") == "y'a fɔ"
+
+    def test_contract_mode_k_variants(self):
+        """Test contract mode with ka/kɛ/ko - all become k'."""
+        config = BambaraNormalizerConfig(contraction_mode="contract")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("ka a ta") == "k'a ta"
+        assert normalizer("kɛ a la") == "k'a la"
+        assert normalizer("ko an ka") == "k'an ka"
+
+    def test_contract_mode_n_variants(self):
+        """Test contract mode with ni/na - both become n'."""
+        config = BambaraNormalizerConfig(contraction_mode="contract")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("ni a ta") == "n'a ta"
+        assert normalizer("na a ma") == "n'a ma"
+
+    def test_preserve_mode_keeps_contracted(self):
+        """Test preserve mode keeps contracted forms."""
+        config = BambaraNormalizerConfig(contraction_mode="preserve")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("b'a fɔ") == "b'a fɔ"
+        assert normalizer("k'a ta") == "k'a ta"
+
+    def test_preserve_mode_keeps_expanded(self):
+        """Test preserve mode keeps expanded forms."""
+        config = BambaraNormalizerConfig(contraction_mode="preserve")
+        normalizer = BambaraNormalizer(config)
+        assert normalizer("bɛ a fɔ") == "bɛ a fɔ"
+        assert normalizer("ka a ta") == "ka a ta"
+
+    def test_contract_mode_complex_sentence(self):
+        """Test contract mode with complex sentences."""
+        config = BambaraNormalizerConfig(contraction_mode="contract")
+        normalizer = BambaraNormalizer(config)
+        result = normalizer("ko u ka a ta")
+        assert "k'u" in result
+        assert "k'a" in result
+
+    def test_round_trip_expand_contract(self):
+        """Test that expand then contract gives consistent result."""
+        expand_config = BambaraNormalizerConfig(contraction_mode="expand")
+        contract_config = BambaraNormalizerConfig(contraction_mode="contract")
+        expand_normalizer = BambaraNormalizer(expand_config)
+        contract_normalizer = BambaraNormalizer(contract_config)
+
+        original = "b'a fɔ"
+        expanded = expand_normalizer(original)  # "bɛ a fɔ"
+        contracted = contract_normalizer(expanded)  # "b'a fɔ"
+        assert contracted == original
+
+    def test_create_normalizer_with_mode(self):
+        """Test create_normalizer factory with mode parameter."""
+        normalizer = create_normalizer("wer", mode="contract")
+        assert normalizer("bɛ a fɔ") == "b'a fɔ"
+
+    def test_normalize_convenience_with_mode(self):
+        """Test normalize() convenience function with mode."""
+        assert normalize("b'a fɔ", mode="expand") == "bɛ a fɔ"
+        assert normalize("bɛ a fɔ", mode="contract") == "b'a fɔ"
+        assert normalize("b'a fɔ", mode="preserve") == "b'a fɔ"
 
 
 class TestEdgeCases:

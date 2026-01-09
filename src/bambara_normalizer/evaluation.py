@@ -1,32 +1,44 @@
 from __future__ import annotations
 
 import unicodedata
-from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
 
 import jiwer
 from jiwer import transforms as tr
 
-from .normalizer import BambaraNormalizer, BambaraNormalizerConfig
-from .config import EvaluationResult
+from .config import BambaraNormalizerConfig, EvaluationResult
+from .normalizer import BambaraNormalizer
 
 
 class BambaraTransform(tr.AbstractTransform):
+
     def __init__(self, normalizer: BambaraNormalizer):
         self.normalizer = normalizer
 
     def process_string(self, s: str) -> str:
         return self.normalizer(s)
-    
-    def process_list(self, inp: List[str]) -> List[str]:
+
+    def process_list(self, inp: list[str]) -> list[str]:
         return [self.process_string(s) for s in inp]
 
 
 def create_bambara_transform(
-    normalizer: Optional[BambaraNormalizer] = None,
-    config: Optional[BambaraNormalizerConfig] = None,
-    preset: str = "wer"
+    normalizer: BambaraNormalizer | None = None,
+    config: BambaraNormalizerConfig | None = None,
+    preset: str = "wer",
+    mode: str = "expand"
 ) -> tr.Compose:
+    """
+    Create a jiwer transform pipeline with Bambara normalization.
+
+    Args:
+        normalizer: Optional pre-configured normalizer
+        config: Optional configuration (ignored if normalizer provided)
+        preset: Preset name if no normalizer/config provided
+        mode: Contraction mode ("expand", "contract", "preserve")
+
+    Returns:
+        Composed jiwer transform
+    """
     if normalizer is None:
         if config:
             normalizer = BambaraNormalizer(config)
@@ -36,7 +48,13 @@ def create_bambara_transform(
                 "cer": BambaraNormalizerConfig.for_cer_evaluation,
                 "standard": BambaraNormalizerConfig,
             }
-            normalizer = BambaraNormalizer(presets.get(preset, BambaraNormalizerConfig)())
+            preset_func = presets.get(preset, BambaraNormalizerConfig)
+            if preset in ("wer", "cer"):
+                config = preset_func(mode=mode)
+            else:
+                config = preset_func()
+                config.contraction_mode = mode
+            normalizer = BambaraNormalizer(config)
 
     return tr.Compose([
         BambaraTransform(normalizer),
@@ -47,10 +65,23 @@ def create_bambara_transform(
 
 
 def create_bambara_char_transform(
-    normalizer: Optional[BambaraNormalizer] = None,
-    config: Optional[BambaraNormalizerConfig] = None,
-    preset: str = "cer"
+    normalizer: BambaraNormalizer | None = None,
+    config: BambaraNormalizerConfig | None = None,
+    preset: str = "cer",
+    mode: str = "expand"
 ) -> tr.Compose:
+    """
+    Create a jiwer character-level transform pipeline with Bambara normalization.
+
+    Args:
+        normalizer: Optional pre-configured normalizer
+        config: Optional configuration (ignored if normalizer provided)
+        preset: Preset name if no normalizer/config provided
+        mode: Contraction mode ("expand", "contract", "preserve")
+
+    Returns:
+        Composed jiwer transform for character-level metrics
+    """
     if normalizer is None:
         if config:
             normalizer = BambaraNormalizer(config)
@@ -60,7 +91,13 @@ def create_bambara_char_transform(
                 "cer": BambaraNormalizerConfig.for_cer_evaluation,
                 "standard": BambaraNormalizerConfig,
             }
-            normalizer = BambaraNormalizer(presets.get(preset, BambaraNormalizerConfig)())
+            preset_func = presets.get(preset, BambaraNormalizerConfig)
+            if preset in ("wer", "cer"):
+                config = preset_func(mode=mode)
+            else:
+                config = preset_func()
+                config.contraction_mode = mode
+            normalizer = BambaraNormalizer(config)
 
     return tr.Compose([
         BambaraTransform(normalizer),
@@ -71,13 +108,26 @@ def create_bambara_char_transform(
 
 
 def compute_wer(
-    reference: Union[str, List[str]],
-    hypothesis: Union[str, List[str]],
-    normalizer: Optional[BambaraNormalizer] = None
+    reference: str | list[str],
+    hypothesis: str | list[str],
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> float:
-    transform = create_bambara_transform(normalizer) if normalizer else None
+    """
+    Compute Word Error Rate with Bambara normalization.
+
+    Args:
+        reference: Reference transcription(s)
+        hypothesis: Hypothesis transcription(s)
+        normalizer: Optional pre-configured normalizer
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        WER as float (0.0 to 1.0+)
+    """
+    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
     return jiwer.wer(
-        reference, 
+        reference,
         hypothesis,
         reference_transform=transform,
         hypothesis_transform=transform
@@ -85,11 +135,24 @@ def compute_wer(
 
 
 def compute_cer(
-    reference: Union[str, List[str]],
-    hypothesis: Union[str, List[str]],
-    normalizer: Optional[BambaraNormalizer] = None
+    reference: str | list[str],
+    hypothesis: str | list[str],
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> float:
-    transform = create_bambara_char_transform(normalizer) if normalizer else None
+    """
+    Compute Character Error Rate with Bambara normalization.
+
+    Args:
+        reference: Reference transcription(s)
+        hypothesis: Hypothesis transcription(s)
+        normalizer: Optional pre-configured normalizer
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        CER as float (0.0 to 1.0+)
+    """
+    transform = create_bambara_char_transform(normalizer, mode=mode) if normalizer else create_bambara_char_transform(mode=mode)
     return jiwer.cer(
         reference,
         hypothesis,
@@ -99,11 +162,24 @@ def compute_cer(
 
 
 def compute_mer(
-    reference: Union[str, List[str]],
-    hypothesis: Union[str, List[str]],
-    normalizer: Optional[BambaraNormalizer] = None
+    reference: str | list[str],
+    hypothesis: str | list[str],
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> float:
-    transform = create_bambara_transform(normalizer) if normalizer else None
+    """
+    Compute Match Error Rate with Bambara normalization.
+
+    Args:
+        reference: Reference transcription(s)
+        hypothesis: Hypothesis transcription(s)
+        normalizer: Optional pre-configured normalizer
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        MER as float
+    """
+    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
     return jiwer.mer(
         reference,
         hypothesis,
@@ -113,11 +189,24 @@ def compute_mer(
 
 
 def compute_wil(
-    reference: Union[str, List[str]],
-    hypothesis: Union[str, List[str]],
-    normalizer: Optional[BambaraNormalizer] = None
+    reference: str | list[str],
+    hypothesis: str | list[str],
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> float:
-    transform = create_bambara_transform(normalizer) if normalizer else None
+    """
+    Compute Word Information Lost with Bambara normalization.
+
+    Args:
+        reference: Reference transcription(s)
+        hypothesis: Hypothesis transcription(s)
+        normalizer: Optional pre-configured normalizer
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        WIL as float
+    """
+    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
     return jiwer.wil(
         reference,
         hypothesis,
@@ -127,14 +216,26 @@ def compute_wil(
 
 
 def compute_wip(
-    reference: Union[str, List[str]],
-    hypothesis: Union[str, List[str]],
-    normalizer: Optional[BambaraNormalizer] = None
+    reference: str | list[str],
+    hypothesis: str | list[str],
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> float:
-    """Compute Word Information Preserved using jiwer."""
-    transform = create_bambara_transform(normalizer) if normalizer else None
+    """
+    Compute Word Information Preserved with Bambara normalization.
+
+    Args:
+        reference: Reference transcription(s)
+        hypothesis: Hypothesis transcription(s)
+        normalizer: Optional pre-configured normalizer
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        WIP as float
+    """
+    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
     return jiwer.wip(
-        reference, 
+        reference,
         hypothesis,
         reference_transform=transform,
         hypothesis_transform=transform
@@ -144,23 +245,34 @@ def compute_wip(
 def compute_der(
     reference: str,
     hypothesis: str,
-    normalizer: Optional[BambaraNormalizer] = None
+    normalizer: BambaraNormalizer | None = None
 ) -> float:
-    """Compute Diacritic Error Rate (DER).
+    """
+    Compute Diacritic Error Rate (DER).
+
+    Measures how well tone marks are preserved/recognized.
+    Only meaningful when preserve_tones=True in normalizer config.
+
+    Args:
+        reference: Reference transcription
+        hypothesis: Hypothesis transcription
+        normalizer: Optional normalizer to apply first
+
+    Returns:
+        DER as float (0.0 = perfect, higher = worse)
     """
     if normalizer:
         reference = normalizer(reference)
         hypothesis = normalizer(hypothesis)
 
-    def extract_diacritics(text: str) -> List[str]:
-
+    def extract_diacritics(text: str) -> list[str]:
         result = []
         normalized = unicodedata.normalize('NFD', text)
         for char in normalized:
             if unicodedata.category(char) == 'Mn':
                 result.append(char)
             elif char.isalpha():
-                result.append('')
+                result.append('')  # Placeholder for no diacritic
         return result
 
     ref_diacritics = extract_diacritics(reference)
@@ -182,48 +294,55 @@ def compute_der(
 def evaluate(
     reference: str,
     hypothesis: str,
-    normalizer: Optional[BambaraNormalizer] = None,
-    compute_diacritic_rate: bool = False
+    normalizer: BambaraNormalizer | None = None,
+    compute_diacritic_rate: bool = False,
+    mode: str = "expand"
 ) -> EvaluationResult:
-    """Comprehensive ASR evaluation with normalization.
-    
+    """
+    Comprehensive ASR evaluation with Bambara normalization.
+
     Args:
         reference: Reference transcription
-        hypothesis: Hypothesis transcription  
+        hypothesis: Hypothesis transcription
         normalizer: Optional normalizer to apply
         compute_diacritic_rate: Whether to compute DER
-        
+        mode: Contraction mode if no normalizer provided
+
     Returns:
         EvaluationResult with all metrics
     """
- 
-    word_transform = create_bambara_transform(normalizer) if normalizer else None
-    char_transform = create_bambara_char_transform(normalizer) if normalizer else None
-    
-    ref_norm = normalizer(reference) if normalizer else reference
-    hyp_norm = normalizer(hypothesis) if normalizer else hypothesis
-    
+
+    if normalizer is None:
+        config = BambaraNormalizerConfig.for_wer_evaluation(mode=mode)
+        normalizer = BambaraNormalizer(config)
+
+    word_transform = create_bambara_transform(normalizer)
+    char_transform = create_bambara_char_transform(normalizer)
+
+    ref_norm = normalizer(reference)
+    hyp_norm = normalizer(hypothesis)
+
     word_output = jiwer.process_words(
         reference,
         hypothesis,
         reference_transform=word_transform,
         hypothesis_transform=word_transform
     )
-    
+
     char_output = jiwer.process_characters(
         reference,
         hypothesis,
         reference_transform=char_transform,
         hypothesis_transform=char_transform
     )
-    
+
     der = None
     if compute_diacritic_rate:
-        if normalizer and normalizer.config.preserve_tones:
+        if normalizer.config.preserve_tones:
             der = compute_der(reference, hypothesis, normalizer)
         else:
             der = compute_der(reference, hypothesis)
-    
+
     return EvaluationResult(
         wer=word_output.wer,
         cer=char_output.cer,
@@ -247,46 +366,63 @@ def evaluate(
 
 
 def evaluate_batch(
-    references: List[str],
-    hypotheses: List[str],
-    normalizer: Optional[BambaraNormalizer] = None,
-    compute_diacritic_rate: bool = False
-) -> Tuple[EvaluationResult, List[EvaluationResult]]:
+    references: list[str],
+    hypotheses: list[str],
+    normalizer: BambaraNormalizer | None = None,
+    compute_diacritic_rate: bool = False,
+    mode: str = "expand"
+) -> tuple[EvaluationResult, list[EvaluationResult]]:
+    """
+    Evaluate a batch of reference-hypothesis pairs.
 
+    Args:
+        references: List of reference transcriptions
+        hypotheses: List of hypothesis transcriptions
+        normalizer: Optional normalizer to apply
+        compute_diacritic_rate: Whether to compute DER
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        Tuple of (aggregate_result, individual_results)
+    """
     if len(references) != len(hypotheses):
         raise ValueError("Reference and hypothesis lists must have same length")
-    
-    word_transform = create_bambara_transform(normalizer) if normalizer else None
-    char_transform = create_bambara_char_transform(normalizer) if normalizer else None
-    
+
+    if normalizer is None:
+        config = BambaraNormalizerConfig.for_wer_evaluation(mode=mode)
+        normalizer = BambaraNormalizer(config)
+
+    word_transform = create_bambara_transform(normalizer)
+    char_transform = create_bambara_char_transform(normalizer)
+
     word_output = jiwer.process_words(
         references,
         hypotheses,
         reference_transform=word_transform,
         hypothesis_transform=word_transform
     )
-    
+
     char_output = jiwer.process_characters(
         references,
         hypotheses,
         reference_transform=char_transform,
         hypothesis_transform=char_transform
     )
-    
+
     individual_results = []
     der_sum = 0.0
     der_count = 0
-    
+
     for ref, hyp in zip(references, hypotheses):
         result = evaluate(ref, hyp, normalizer, compute_diacritic_rate)
         individual_results.append(result)
-        
+
         if result.der is not None and result.der != float('inf'):
             der_sum += result.der
             der_count += 1
-    
+
     aggregate_der = der_sum / der_count if der_count > 0 else None
-    
+
     aggregate_result = EvaluationResult(
         wer=word_output.wer,
         cer=char_output.cer,
@@ -305,16 +441,33 @@ def evaluate_batch(
         char_hits=char_output.hits,
         total_reference_chars=sum(len(ref) for ref in char_output.references),
     )
-    
+
     return aggregate_result, individual_results
 
 
 def visualize_alignment(
     reference: str,
     hypothesis: str,
-    normalizer: Optional[BambaraNormalizer] = None
+    normalizer: BambaraNormalizer | None = None,
+    mode: str = "expand"
 ) -> str:
-    transform = create_bambara_transform(normalizer) if normalizer else None
+    """
+    Visualize word alignment between reference and hypothesis.
+
+    Args:
+        reference: Reference transcription
+        hypothesis: Hypothesis transcription
+        normalizer: Optional normalizer to apply
+        mode: Contraction mode if no normalizer provided
+
+    Returns:
+        String visualization of alignment
+    """
+    if normalizer is None:
+        config = BambaraNormalizerConfig.for_wer_evaluation(mode=mode)
+        normalizer = BambaraNormalizer(config)
+
+    transform = create_bambara_transform(normalizer)
 
     word_output = jiwer.process_words(
         reference,
@@ -327,20 +480,40 @@ def visualize_alignment(
 
 
 class BambaraEvaluator:
-    """Convenience class for consistent ASR evaluation with Bambara normalization.
+    """
+    Convenience class for consistent ASR evaluation with Bambara normalization.
+
+    Supports three contraction modes:
+    - "expand": Expand contractions (b'a → bɛ a) - default
+    - "contract": Contract expanded forms (bɛ a → b'a)
+    - "preserve": Don't touch contractions
 
     Example:
         >>> evaluator = BambaraEvaluator()
         >>> result = evaluator.evaluate("B'a fɔ́", "BƐ a fɔ")
         >>> print(result)
         WER: 0.00% ...
+
+        >>> # Use contract mode for fair comparison
+        >>> evaluator = BambaraEvaluator(mode="contract")
+        >>> result = evaluator.evaluate("k'a ta", "ka a ta")
+        >>> print(result.wer)  # 0.0 - same after contraction
     """
 
     def __init__(
         self,
-        config: Optional[BambaraNormalizerConfig] = None,
-        preset: str = "wer"
+        config: BambaraNormalizerConfig | None = None,
+        preset: str = "wer",
+        mode: str = "expand"
     ):
+        """
+        Initialize the evaluator.
+
+        Args:
+            config: Optional configuration (overrides preset and mode)
+            preset: Preset name ("wer", "cer", "standard")
+            mode: Contraction mode ("expand", "contract", "preserve")
+        """
         if config:
             self.normalizer = BambaraNormalizer(config)
         else:
@@ -349,10 +522,20 @@ class BambaraEvaluator:
                 "cer": BambaraNormalizerConfig.for_cer_evaluation,
                 "standard": BambaraNormalizerConfig,
             }
-            self.normalizer = BambaraNormalizer(presets.get(preset, BambaraNormalizerConfig)())
-
+            preset_func = presets.get(preset, BambaraNormalizerConfig.for_wer_evaluation)
+            if preset in ("wer", "cer"):
+                config = preset_func(mode=mode)
+            else:
+                config = preset_func()
+                config.contraction_mode = mode
+            self.normalizer = BambaraNormalizer(config)
 
         self.transform = create_bambara_transform(self.normalizer)
+        self.char_transform = create_bambara_char_transform(self.normalizer)
+
+    @property
+    def mode(self) -> str:
+        return self.normalizer.config.contraction_mode
 
     def evaluate(
         self,
@@ -364,21 +547,46 @@ class BambaraEvaluator:
 
     def evaluate_batch(
         self,
-        references: List[str],
-        hypotheses: List[str],
+        references: list[str],
+        hypotheses: list[str],
         compute_diacritic_rate: bool = False
-    ) -> Tuple[EvaluationResult, List[EvaluationResult]]:
+    ) -> tuple[EvaluationResult, list[EvaluationResult]]:
         return evaluate_batch(references, hypotheses, self.normalizer, compute_diacritic_rate)
 
-    def wer(self, reference: Union[str, List[str]], hypothesis: Union[str, List[str]]) -> float:
-        return jiwer.wer(reference, hypothesis, 
-                        truth_transform=self.transform, 
-                        hypothesis_transform=self.transform)
+    def wer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
+        return jiwer.wer(
+            reference, hypothesis,
+            reference_transform=self.transform,
+            hypothesis_transform=self.transform
+        )
 
-    def cer(self, reference: Union[str, List[str]], hypothesis: Union[str, List[str]]) -> float:
-        return jiwer.cer(reference, hypothesis,
-                        truth_transform=self.transform,
-                        hypothesis_transform=self.transform)
+    def cer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
+        return jiwer.cer(
+            reference, hypothesis,
+            reference_transform=self.char_transform,
+            hypothesis_transform=self.char_transform
+        )
+
+    def mer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
+        return jiwer.mer(
+            reference, hypothesis,
+            reference_transform=self.transform,
+            hypothesis_transform=self.transform
+        )
+
+    def wil(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
+        return jiwer.wil(
+            reference, hypothesis,
+            reference_transform=self.transform,
+            hypothesis_transform=self.transform
+        )
+
+    def wip(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
+        return jiwer.wip(
+            reference, hypothesis,
+            reference_transform=self.transform,
+            hypothesis_transform=self.transform
+        )
 
     def visualize(self, reference: str, hypothesis: str) -> str:
         return visualize_alignment(reference, hypothesis, self.normalizer)
