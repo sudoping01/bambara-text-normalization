@@ -71,17 +71,12 @@ from .utils import (
 )
 
 __all__ = [
-    # Main classes
     'BambaraNormalizer',
     'BambaraNormalizerConfig',
     'NormalizationLevel',
     'BambaraEvaluator',
     'EvaluationResult',
-    
-    # Factory function
     'create_normalizer',
-    
-    # Evaluation functions
     'compute_wer',
     'compute_cer',
     'compute_der',
@@ -94,7 +89,6 @@ __all__ = [
     'create_bambara_transform',
     'BambaraTransform',
     
-    # Utility functions
     'is_bambara_char',
     'is_bambara_special_char',
     'get_base_char',
@@ -108,7 +102,6 @@ __all__ = [
     'normalize_unicode_variants',
     'get_unicode_info',
     
-    # Character sets
     'BAMBARA_VOWELS',
     'BAMBARA_CONSONANTS',
     'BAMBARA_SPECIAL_CHARS',
@@ -138,5 +131,5 @@ def normalize(text: str, preset: str = "standard", **kwargs) -> str:
     return normalizer(text)
 
 
-# Add normalize to exports
+
 __all__.append('normalize')
