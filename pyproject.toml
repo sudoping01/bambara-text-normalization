@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bambara-normalizer"
 version = "1.0.0"
-description = "Production-grade Bambara (Bamanankan) text normalizer for ASR evaluation"
+description = "Bambara (Bamanankan) text normalizer for ASR evaluation"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [

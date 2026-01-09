@@ -1,23 +1,37 @@
 
+# Copyright 2026 sudoping01.
+
+# Licensed under the MIT License; you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+
+# https://opensource.org/licenses/MIT
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+
 
 from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Optional, Dict, List
 
 from .config import BambaraNormalizerConfig
 
 
 class BambaraNormalizer:
-    """Bambara text normalizer for ASR evaluation.
+    """Bambara text normalizer.
 
     Handles Bambara-specific linguistic features including:
     - Special characters: ɛ, ɔ, ɲ, ŋ
     - Grammatical contractions: b', t', y', n', k' (with disambiguation)
     - Tone diacritics: à, á, è, é, etc.
     - Legacy orthography: è==>ɛ, ny==>ɲ, ng==>ŋ
-    
+
     Contraction modes:
     - "expand": b'a → bɛ a (default, with disambiguation for k')
     - "contract": bɛ a → b'a (reverse, simpler - no disambiguation needed)
@@ -27,7 +41,7 @@ class BambaraNormalizer:
         >>> normalizer = BambaraNormalizer()
         >>> normalizer("B'a fɔ́!")
         'bɛ a fɔ'
-        
+
         >>> config = BambaraNormalizerConfig(contraction_mode="contract")
         >>> normalizer = BambaraNormalizer(config)
         >>> normalizer("bɛ a fɔ")
@@ -58,37 +72,36 @@ class BambaraNormalizer:
         '\u02BB',
     ]
 
-    # =========================================================================
-    # POSTPOSITIONS COMPATIBLE WITH kɛ (verb "to do/make")
-    # =========================================================================
+    # =====================================================#
+    # POSTPOSITIONS COMPATIBLE WITH kɛ (verb "to do/make") #
+    # =====================================================#
     KE_POSTPOSITIONS = {
         'la', 'ye', 'fɛ', 'kɔnɔ', 'kɔ', 'kɔrɔ',
         'da', 'daa', 'kun', 'ɲɛ', 'ɲɛɛ', 'ɲɛfɛ',
         'bolo', 'sɛmɛ', 'cɛ', 'cɛma', 'kɔfɛ', 'kosɔn', 'kama',
     }
 
-    # =========================================================================
-    # REPORTED SPEECH MARKERS (for ko disambiguation after 'ma')
-    # =========================================================================
+    # ===========================================================#
+    # REPORTED SPEECH MARKERS (for ko disambiguation after 'ma') #
+    # ===========================================================#
     REPORTED_SPEECH_MARKERS = {
         'ko', 'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
         'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
     }
 
-    # =========================================================================
-    # CLAUSE MARKERS (for k' → ko disambiguation)
-    # =========================================================================
+    # ============================================#
+    # CLAUSE MARKERS (for k' => ko disambiguation)#
+    # ============================================#
     CLAUSE_MARKERS = {
         'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
         'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
         'yɛrɛ', 'de', 'dɛ',
     }
 
-    # =========================================================================
-    # CONTRACTION MAPPINGS
-    # =========================================================================
-    
-    # For expansion (simple cases, non-k')
+    # =====================#
+    # CONTRACTION MAPPINGS #
+    # =====================#
+
     SIMPLE_CONTRACTIONS = {
         "b'": "bɛ ",
         "t'": "tɛ ",
@@ -104,38 +117,26 @@ class BambaraNormalizer:
         "y'u": "ye u", "b'u": "bɛ u", "t'u": "tɛ u",
     }
 
-    # For lookahead during expansion
+
     CONTRACTION_EXPANSIONS = {
         "b'": "bɛ", "t'": "tɛ", "y'": "ye", "m'": "ma", "s'": "sa",
     }
 
-    # =========================================================================
-    # CONTRACTION PATTERNS (for contract mode)
-    # Maps expanded form → contracted form
-    # =========================================================================
+
     CONTRACTION_PATTERNS = {
-        # bɛ contractions
         'bɛ': "b'",
-        # tɛ contractions  
         'tɛ': "t'",
-        # ye contractions
         'ye': "y'",
-        # ni/na contractions (both → n')
-        'ni': "n'",
         'na': "n'",
-        # ka/kɛ/ko contractions (all → k')
         'ka': "k'",
         'kɛ': "k'",
         'ko': "k'",
-        # ma contractions
         'ma': "m'",
-        # sa contractions
         'sa': "s'",
     }
-    
-    # Vowel-initial pronouns/words that can follow contractions
+
     VOWEL_STARTERS = {'a', 'i', 'o', 'u', 'e', 'ɛ', 'ɔ',
-                      'an', 'anw', 'aw', 'ale', 'olu', 'aw'}
+                      'an', 'anw', 'aw', 'ale', 'olu'}
 
     LEGACY_ORTHOGRAPHY = {
         'è': 'ɛ', 'È': 'Ɛ', 'ò': 'ɔ', 'Ò': 'Ɔ',
@@ -154,7 +155,7 @@ class BambaraNormalizer:
 
     PUNCTUATION_CATEGORIES = {'Po', 'Ps', 'Pe', 'Pi', 'Pf', 'Pd', 'Pc'}
 
-    def __init__(self, config: Optional[BambaraNormalizerConfig] = None):
+    def __init__(self, config: BambaraNormalizerConfig | None = None):
         self.config = config or BambaraNormalizerConfig()
         self._compile_patterns()
 
@@ -189,13 +190,11 @@ class BambaraNormalizer:
         if self.config.normalize_apostrophes:
             text = self._normalize_apostrophes(text)
 
-        # Handle contractions based on mode
         mode = self.config.contraction_mode
         if mode == "expand":
             text = self._expand_contractions(text)
         elif mode == "contract":
             text = self._contract_text(text)
-        # mode == "preserve": do nothing
 
         if self.config.normalize_legacy_orthography:
             text = self._normalize_legacy_orthography(text)
@@ -225,14 +224,14 @@ class BambaraNormalizer:
 
         return text
 
-    # =========================================================================
-    # CONTRACTION MODE (NEW)
-    # =========================================================================
-    
+    # ==================
+    # CONTRACTION MODE #
+    # ==================
+
     def _contract_text(self, text: str) -> str:
         """
         Contract expanded forms to contracted forms.
-        
+
         bɛ a → b'a
         tɛ a → t'a
         ye a → y'a
@@ -241,122 +240,112 @@ class BambaraNormalizer:
         ka a → k'a
         kɛ a → k'a
         ko a → k'a
-        
+
         This is simpler than expansion - no disambiguation needed!
         """
         words = text.split()
         result = []
         i = 0
-        
+
         while i < len(words):
             word = words[i]
             word_lower = self._strip_tones_and_punct(word.lower())
-            
-            # Check if this word can be contracted with the next word
+
             if word_lower in self.CONTRACTION_PATTERNS and i + 1 < len(words):
                 next_word = words[i + 1]
                 next_word_lower = self._strip_tones_and_punct(next_word.lower())
-                
-                # Check if next word starts with a vowel
+
                 if next_word_lower and next_word_lower[0] in 'aeiouɛɔ':
-                    # Contract: "bɛ a" → "b'a"
                     contracted_prefix = self.CONTRACTION_PATTERNS[word_lower]
                     contracted = contracted_prefix + next_word
                     result.append(contracted)
-                    i += 2  # Skip both words
+                    i += 2  # so let's skip both words
                     continue
-            
+
             result.append(word)
             i += 1
-        
+
         return ' '.join(result)
 
-    # =========================================================================
-    # EXPANSION MODE (existing, with improvements)
-    # =========================================================================
+    # ================
+    # EXPANSION MODE #
+    # ================
 
     def _normalize_apostrophes(self, text: str) -> str:
         return self._apostrophe_pattern.sub("'", text)
 
     def _expand_contractions(self, text: str) -> str:
-        # First expand k' contractions (most complex)
         text = self._expand_k_contraction(text)
-        
-        # Then expand n' contractions (na/ni disambiguation)
+
         text = self._expand_n_contraction(text)
 
-        # Then other extended contractions
         for contracted, expanded in self.EXTENDED_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
 
-        # Finally simple contractions
         for contracted, expanded in self.SIMPLE_CONTRACTIONS.items():
             pattern = re.compile(re.escape(contracted), re.IGNORECASE)
             text = pattern.sub(expanded, text)
 
         return text
 
-    def _get_lookahead_base(self, word: str) -> Optional[str]:
-        """Get the base form of a word for lookahead disambiguation."""
+    def _get_lookahead_base(self, word: str) -> str | None:
         word_lower = word.lower()
-        
+
         if re.match(r"k'[aeiouɛɔ]", word_lower):
             return None  # Signal recursive prediction needed
-        
+
         for prefix, expanded in self.CONTRACTION_EXPANSIONS.items():
             if word_lower.startswith(prefix):
                 return expanded
-        
+
         return self._strip_tones_and_punct(word_lower)
 
-    def _predict_k_expansion(self, words: List[str], idx: int) -> str:
-        """Predict what a k' contraction at position idx will expand to."""
+    def _predict_k_expansion(self, words: list[str], idx: int) -> str:
         if idx >= len(words):
             return "ka"
-        
+
         word = words[idx]
         k_match = re.match(r"k'([aeiouɛɔ]\w*)", word, re.IGNORECASE)
         if not k_match:
             return "ka"
-        
+
         if idx + 1 < len(words):
             next_word = words[idx + 1]
             next_base = self._get_lookahead_base(next_word)
-            
+
             if next_base is None:
                 predicted_next = self._predict_k_expansion(words, idx + 1)
                 if predicted_next == "ka":
                     return "ko"
                 else:
                     return "ka"
-            
+
             if next_base in self.KE_POSTPOSITIONS:
                 return "kɛ"
-            
+
             if next_base in self.CLAUSE_MARKERS:
                 return "ko"
-            
+
             if next_base == 'ma':
                 if idx + 2 < len(words):
                     word_after_ma = words[idx + 2]
                     word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
-                    
+
                     if idx + 3 < len(words):
                         third_word = words[idx + 3]
                         third_word_base = self._strip_tones_and_punct(third_word.lower())
                         if third_word_base == 'ye':
                             return "kɛ"
-                    
+
                     if word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
                         return "ko"
-                
+
                 return "kɛ"
-        
+
         return "ka"
 
     def _expand_k_contraction(self, text: str) -> str:
-        """Expand k' contractions with context-aware disambiguation."""
         words = text.split()
         result = []
         i = 0
@@ -416,7 +405,6 @@ class BambaraNormalizer:
         return ' '.join(result)
 
     def _expand_n_contraction(self, text: str) -> str:
-        """Expand n' contractions with na/ni disambiguation."""
         words = text.split()
         result = []
         i = 0
@@ -447,9 +435,9 @@ class BambaraNormalizer:
 
         return ' '.join(result)
 
-    # =========================================================================
-    # UTILITY METHODS
-    # =========================================================================
+    # ================#
+    # UTILITY METHODS #
+    # ================#
 
     def _strip_tones(self, word: str) -> str:
         nfd = unicodedata.normalize('NFD', word)
@@ -523,10 +511,10 @@ class BambaraNormalizer:
         self.config = original_config
         return result
 
-    def normalize_batch(self, texts: List[str]) -> List[str]:
+    def normalize_batch(self, texts: list[str]) -> list[str]:
         return [self.normalize(text) for text in texts]
 
-    def get_normalization_diff(self, text: str) -> Dict[str, str]:
+    def get_normalization_diff(self, text: str) -> dict[str, str]:
         result = {'original': text}
         text = unicodedata.normalize('NFC', text)
         result['nfc_normalized'] = text
@@ -569,11 +557,12 @@ class BambaraNormalizer:
 
 def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) -> BambaraNormalizer:
     """
-    Factory function to create a normalizer with preset configuration.
+    Factory function to create a normalizer with preset configuration and con.
 
     Args:
         preset: One of "standard", "wer", "cer", "preserving_tones", "minimal"
         mode: Contraction mode - "expand", "contract", or "preserve"
+        config : custom configuration
         **kwargs: Override specific configuration options
 
     Returns:
@@ -584,6 +573,7 @@ def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) 
         >>> normalizer("bɛ a fɔ")
         "b'a fɔ"
     """
+
     presets = {
         "standard": BambaraNormalizerConfig,
         "wer": BambaraNormalizerConfig.for_wer_evaluation,
@@ -592,10 +582,10 @@ def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) 
         "minimal": BambaraNormalizerConfig.minimal,
     }
 
+
     if preset not in presets:
         raise ValueError(f"Unknown preset: {preset}. Choose from: {list(presets.keys())}")
 
-    # Handle presets that accept mode parameter
     if preset in ("wer", "cer", "preserving_tones"):
         config = presets[preset](mode=mode)
     else:
