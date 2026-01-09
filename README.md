@@ -2,85 +2,336 @@
     Bambara Text Normalizer
 </h1>
 <p align="center">
-    <em>Text normalization for Bambara (Bamanankan)</em>
+    <em>Text Normalization & ASR Evaluation Framework for Bambara (Bamanankan)</em>
 </p>
 <p align="center">
     <a href="#installation">Installation</a> •
-    <a href="#usage">Usage</a> •
-    <a href="#linguistic-decisions">Linguistic Decisions</a> •
-    <a href="#known-limitations">Limitations</a> •
-    <a href="#evaluation-metrics">Metrics</a> •
+    <a href="#text-normalization">Normalization</a> •
+    <a href="#asr-evaluation-framework">ASR Evaluation</a> •
+    <a href="#contraction-modes">Modes</a> •
+    <a href="#command-line-interface">CLI</a> •
+    <a href="#linguistic-decisions">Linguistics</a> •
     <a href="#references">References</a>
 </p>
 
 ---
 
-<p align="justify">
-Text normalization broadly encompasses two related but distinct tasks in conversational AI pipelines:
-</p>
-<ul align="justify">
-    <li><b>Text Normalization (TN)</b>: Converting written-form text to its verbalized/spoken form (e.g., "$123" → "one hundred twenty-three dollars"). Essential preprocessing for text-to-speech (TTS).</li>
-    <li><b>Inverse Text Normalization (ITN)</b>: Converting spoken-form text to written form (the reverse). Used in ASR post-processing to improve readability and downstream task performance (e.g., machine translation, NER).</li>
-</ul>
-<p align="justify">
-State-of-the-art systems (e.g., <a href="https://github.com/NVIDIA/NeMo">NVIDIA NeMo</a>) primarily address <b>semiotic classes</b>  tokens where spoken and written forms differ (dates, cardinals, measures, currency, etc.)  using WFST-based grammars, neural models, or hybrids. These support a growing set of languages (English, Spanish, German, French, Russian, Chinese, etc.) and allow grammar customization for new languages.
-</p>
-<p align="justify">
-For low-resource languages like Bambara, however, the primary challenge in ASR evaluation is not semiotic classes but <b>orthographic variation</b>: the same spoken utterance can be validly transcribed in multiple ways (contracted <code>k'a ta</code> vs. expanded <code>ka a ta</code>, legacy <code>ny</code> vs. modern <code>ɲ</code>, with/without tone marks). Without normalization, WER/CER unfairly penalizes models for human writing inconsistencies rather than recognition errors.
-</p>
-<p align="justify">
-This lightweight, rule-based tool provides linguistically-informed normalization tailored to these Bambara-specific issues, enabling fair ASR evaluation. It complements general-purpose TN/ITN systems by focusing on grammatical and orthographic variants rather than semiotic tokens.
-</p>
+## Purpose
+
+This tool serves **two complementary purposes** for Bambara language processing:
+
+| Purpose | Description |
+|---------|-------------|
+| **Text Normalization** | Standardize Bambara text for any downstream NLP task (TTS, MT, NER, etc.) |
+| **ASR Evaluation** | Fair WER/CER computation that accounts for valid orthographic variation |
+
+> [!NOTE]
+> Bambara orthography allows variation: the same utterance can be written as `k'a ta` or `ka a ta`  both are correct. Without normalization, evaluation metrics unfairly penalize models for human writing inconsistencies rather than actual recognition errors.
 
 ---
 
 ## Installation
+
 ```bash
 pip install git+https://github.com/sudoping01/bambara-text-normalization.git
 ```
 
-## Usage
+---
 
-#### Basic Normalization
+## Text Normalization
+
+
+
+
 ```python
-from bambara_normalizer import BambaraNormalizer
+from bambara_normalizer import normalize
 
-normalizer = BambaraNormalizer()
-normalizer("B'a fɔ")       # → "bɛ a fɔ"
-normalizer("nyama bèlè")   # → "ɲama bɛlɛ"
-normalizer("k'a ta")       # → "ka a ta"
-normalizer("k'a la")       # → "kɛ a la"
+# Default: expand contractions
+normalize("⁠Ne k’a ma ko ayi")           
+normalize("⁠K’ale t’a fɛ k’a kɛ")    
+normalize("⁠K’i k’i janto i yɛrɛ la")        
+
+
+# Contract mode: collapse expanded forms
+normalize("Ne ko a ma ko ayi", mode="contract")    
+normalize("Ko ale tɛ a fɛ ka o kɛ", mode="contract")    
+normalize("Ko i ka i janto i yɛrɛ la", mode="contract")    
+
+# Preserve mode: don't touch contractions
+normalize("K’i k’i janto i yɛrɛ la", mode="preserve")     
 ```
 
-#### ASR Evaluation
-```python
-from bambara_normalizer import BambaraEvaluator
+### Custom Settings
 
-evaluator = BambaraEvaluator()
-result = evaluator.evaluate(reference="B'a fɔ", hypothesis="bɛ a fɔ")
-print(f"WER: {result.wer:.2%}")
-print(f"CER: {result.cer:.2%}")
+```python
+from bambara_normalizer import normalize
+
+# Full control over normalization
+text = normalize(
+    "Ka na son k’o k’a la",
+    mode="expand",                      # "expand" | "contract" | "preserve"
+    preserve_tones=False,               
+    normalize_legacy_orthography=True, 
+    lowercase=True,                     
+    remove_punctuation=False,           
+    normalize_whitespace=True,         
+    normalize_apostrophes=True,         
+    normalize_special_chars=True,     
+    expand_numbers=False,             
+    remove_diacritics_except_tones=False,  
+    handle_french_loanwords=True,   
+    strip_repetitions=False,       
+    normalize_compounds=True, 
+)
 ```
 
-#### Configuration Presets
+### Using BambaraNormalizer Class
+
+For repeated normalization with consistent settings:
+
 ```python
 from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
 
-# For WER evaluation (removes tones)
+
+config = BambaraNormalizerConfig(contraction_mode="expand") # change it to "contract" or preserve
+normalizer = BambaraNormalizer(config)
+normalizer("A y'a fɔ")      
+normalizer("k'a la")   
+
+# Contraction mode
+config = BambaraNormalizerConfig(contraction_mode="contract")
+normalizer = BambaraNormalizer(config)
+normalizer("bɛ a fɔ")     
+normalizer("ka a ta")     
+```
+
+### Predefined Configuration Presets
+
+```python
+from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
+
+# For WER evaluation (aggressive normalization, removes tones)
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_wer_evaluation())
+
+# For WER with contract mode
+normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_wer_evaluation(mode="contract"))
+
+# For CER evaluation
+normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_cer_evaluation())
 
 # Preserve tone marks
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.preserving_tones())
 
-# Minimal normalization
+# Minimal normalization (only essential fixes)
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.minimal())
 ```
 
-#### Command Line
+---
+
+## ASR Evaluation Framework
+
+### Quick Evaluation
+
+```python
+from bambara_normalizer import evaluate
+
+
+result = evaluate(
+    reference="B'a fɔ ka taa",
+    hypothesis="bɛ a fɔ ka taa"
+
+)
+
+
+print(f"WER: {result.wer:.2%}")  
+print(f"CER: {result.cer:.2%}")
+print(f"MER: {result.mer:.2%}")
+```
+
+### Evaluator with Mode Selection
+
+> [!IMPORTANT]
+> The `mode` parameter determines how contractions are handled during evaluation. This significantly impacts WER scores when reference and hypothesis use different orthographic conventions.
+
+```python
+from bambara_normalizer import evaluate
+
+
+result = evaluate(
+    reference="k'a ta", 
+    hypothesis="ka a ta"
+    mode="expand" # contract | preserve 
+    )
+print(f"WER: {result.wer:.2%}")   
+```
+
+### Flexible Configuration
+
+For full control use the evalution class and define the normalization configuration:
+
+```python
+from bambara_normalizer import (
+    BambaraNormalizer, 
+    BambaraNormalizerConfig, 
+    BambaraEvaluator
+)
+
+# Define custom normalizer: same then the config we did upside
+config = BambaraNormalizerConfig(
+    contraction_mode="contract",
+    preserve_tones=False,
+    lowercase=True,
+    remove_punctuation=True,
+    normalize_legacy_orthography=True,
+)
+
+
+evaluator = BambaraEvaluator(config=config)
+
+
+result = evaluator.evaluate(
+    reference="K'a fɔ́!",
+    hypothesis="ka a fo"
+)
+print(f"WER: {result.wer:.2%}")
+```
+
+### Batch Evaluation
+
+```python
+from bambara_normalizer import BambaraEvaluator
+
+evaluator = BambaraEvaluator(mode="contract")
+
+references = ["k'a ta", "b'a fɔ", "n'a ma"]
+hypotheses = ["ka a ta", "bɛ a fɔ", "na a ma"]
+
+aggregate, individual = evaluator.evaluate_batch(references, hypotheses)
+
+print(f"Overall WER: {aggregate.wer:.2%}")
+for i, result in enumerate(individual):
+    print(f"  [{i}] WER: {result.wer:.2%}")
+```
+
+### Available Metrics
+
+| Metric | Method | Description |
+|--------|--------|-------------|
+| **WER** | `evaluator.wer(ref, hyp)` | Word Error Rate |
+| **CER** | `evaluator.cer(ref, hyp)` | Character Error Rate |
+| **MER** | `evaluator.mer(ref, hyp)` | Match Error Rate |
+| **WIL** | `evaluator.wil(ref, hyp)` | Word Information Lost |
+| **WIP** | `evaluator.wip(ref, hyp)` | Word Information Preserved |
+| **DER** | `result.der` | Diacritic Error Rate (tone accuracy) |
+
+---
+
+## Contraction Modes
+
+> [!WARNING]
+> Choosing the right mode is critical for fair ASR evaluation. Using the wrong mode can inflate or deflate WER scores artificially.
+
+Version 2.0 introduces **three contraction modes** to handle bidirectional Bambara orthography:
+
+| Mode | Direction | When to Use |
+|------|-----------|-------------|
+| `expand` | `b'a` → `bɛ a` | Default. Full linguistic analysis with k'/n' disambiguation |
+| `contract` | `bɛ a` → `b'a` | Simpler, more forgiving. No disambiguation ambiguity |
+| `preserve` | No change | Debugging, or when you want raw comparison |
+
+### Why Contract Mode Matters
+
+**Expansion is complex**  the contraction `k'` can expand to three different words:
+
+| Contraction | Possible Expansions | Meaning |
+|-------------|---------------------|---------|
+| `k'a` | `ka a` | infinitive marker |
+| `k'a` | `kɛ a` | verb "to do" |
+| `k'a` | `ko a` | verb "to say" |
+
+The normalizer uses context to disambiguate, but some cases are genuinely ambiguous.
+
+**Contraction is simple**  all variants collapse to the same form:
+
+```
+ka a  ─┐
+kɛ a  ─┼─>  k'a
+ko a  ─┘
+```
+
+> [!TIP]
+> For ASR evaluation, **contract mode is more forgiving** because it doesn't penalize the model for disambiguation differences when both forms are linguistically valid.
+
+### Contraction Mappings
+
+| Expanded | Contracted | Function |
+|----------|------------|----------|
+| `bɛ` + vowel | `b'` | Affirmative imperfective |
+| `tɛ` + vowel | `t'` | Negative imperfective |
+| `ye` + vowel | `y'` | Perfective marker |
+| `ni` + vowel | `n'` | Conjunction |
+| `na` + vowel | `n'` | Verb "come" |
+| `ka` + vowel | `k'` | Infinitive marker |
+| `kɛ` + vowel | `k'` | Verb "to do" |
+| `ko` + vowel | `k'` | Verb "to say" |
+
+---
+
+## Command Line Interface
+
+### Basic Usage
+
 ```bash
+
+# default mode is expand1
 bambara-normalize "B'a fɔ́"
-bambara-normalize --preset wer "N t'a don"
+# Output: bɛ a fɔ
+
+# Contract mode
+bambara-normalize --mode contract "bɛ a fɔ"
+# Output: b'a fɔ
+
+# Preserve mode
+bambara-normalize --mode preserve "B'a fɔ"
+# Output: b'a fɔ
+```
+
+### With Presets
+
+```bash
+# WER preset (aggressive normalization)
+bambara-normalize --preset wer "K'a fɔ́!"
+# Output: ka a fɔ
+
+# WER preset with contract mode
+bambara-normalize --preset wer --mode contract "Ka a fɔ"
+# Output: k'a fɔ
+
+# CER preset
+bambara-normalize --preset cer "B'a fɔ"
+```
+
+### File Evaluation
+
+```bash
+# Evaluate reference vs hypothesis files
 bambara-normalize --evaluate reference.txt hypothesis.txt
+
+# With contract mode
+bambara-normalize --evaluate --mode contract ref.txt hyp.txt
+
+# Output detailed metrics
+bambara-normalize --evaluate --detailed ref.txt hyp.txt
+```
+
+### Batch Processing
+
+```bash
+# Process file line by line
+bambara-normalize --input corpus.txt --output normalized.txt
+
+# With specific mode
+bambara-normalize --input corpus.txt --output normalized.txt --mode contract
 ```
 
 ---
@@ -93,59 +344,36 @@ Bambara orthography allows variation. For the same spoken utterance:
 - Annotator A writes: `k'a ta`
 - Annotator B writes: `ka a ta`
 
-**Both are correct.** You see both styles in published texts (stories, documents, datasets). Without normalization, we penalize the model for something that is not its fault  the inconsistency is in human writing conventions, not in speech recognition.
+**Both are correct.** Without normalization, we penalize models for human writing inconsistencies, not recognition errors.
 
-### Contraction Expansion
+### n' Disambiguation
 
-| Input | Output | Function |
-|-------|--------|----------|
-| `b'` | `bɛ` | Affirmative imperfective |
-| `t'` | `tɛ` | Negative imperfective |
-| `y'` | `ye` | Perfective marker |
-| `n'` | `ni` | Conjunction |
-| `k'` | `ka` / `kɛ` / `ko` | Context-dependent (see below) |
+| Pattern | Expansion | Meaning |
+|---------|-----------|---------|
+| `n' + pronoun + ma` | `na` | Verb "to come" |
+| `n' + other` | `ni` | Conjunction (default) |
 
-### k' Disambiguation
+**Examples:**
+- `n'a ma` → `na a ma` (come to him)
+- `n'a ta` → `ni a ta` (if he takes)
 
-The contraction `k'` is highly ambiguous and can derive from **three** different sources:
+### k' Disambiguation Rules
 
-| Source | Meaning | Example |
-|--------|---------|---------|
-| `ka` | Infinitive marker | `k'a ta` → `ka a ta` (to take it) |
-| `kɛ` | Verb "to do/make" | `k'a la` → `kɛ a la` (do it there) |
-| `ko` | Verb "to say" | `k'an ka` → `ko an ka` (said we should) |
+Applied in priority order (derived from [Daba grammar](https://github.com/maslinych/daba)):
 
-**Disambiguation rules** (applied in priority order, derived from [Daba grammar](https://github.com/maslinych/daba) and corpus patterns):
+| Priority | Pattern | Result | Example |
+|----------|---------|--------|---------|
+| 1 | `k' + pronoun + ma + X + ye` | `kɛ` | `k'a ma hɛrɛ ye` → `kɛ a ma hɛrɛ ye` |
+| 2 | `k' + pronoun + ma +` speech marker | `ko` | `k'anw ma ko` → `ko anw ma ko` |
+| 3 | `k' + pronoun +` postposition | `kɛ` | `k'a la` → `kɛ a la` |
+| 4 | `k' + pronoun +` clause marker | `ko` | `k'an ka ta` → `ko an ka ta` |
+| 5 | Default | `ka` | `k'a ta` → `ka a ta` |
 
-1. **Benefactive construction**: `k' + pronoun + ma + X + ye` → `kɛ` ("be X for someone")  
-   Example: `k'a ma hɛrɛ ye` → `kɛ a ma hɛrɛ ye` (be peace for him)
+**Postpositions:** `la`, `na`, `ye`, `fɛ`, `kɔnɔ`, `kɔ`, `kɔrɔ`, `kan`, `kun`, `ɲɛ`, `bolo`
 
-2. **Reported speech after `ma`**: `k' + pronoun + ma +` clause marker → `ko`  
-   Example: `k'anw ma ko` → `ko anw ma ko` (said to us that...)
+**Clause markers:** `ka`, `kana`, `bɛ`, `tɛ`, `bɛna`, `tɛna`, `tun`, `mana`
 
-3. **Postpositional use**: `k' + pronoun +` postposition → `kɛ`  
-   Postpositions: `la`, `na`, `ye`, `fɛ`, `kɔnɔ`, `kɔ`, `kɔrɔ`, `kan`, `kun`, `ɲɛ`, `bolo`, etc.
-
-4. **Direct reported speech**: `k' + pronoun +` clause marker → `ko`  
-   Clause markers: `ka`, `kana`, `bɛ`, `tɛ`, `bɛna`, `tɛna`, `tun`, `mana`, etc.
-
-5. **Default**: `k' + pronoun +` verb/other → `ka` (infinitive marker)
-
-#### Examples
-
-| Input | Output | Reason |
-|-------|--------|--------|
-| `k'a la` | `kɛ a la` | `la` is postposition |
-| `k'a fɛ` | `kɛ a fɛ` | `fɛ` is postposition |
-| `k'a ma hɛrɛ ye` | `kɛ a ma hɛrɛ ye` | Benefactive (ma...ye pattern) |
-| `k'a ma tasuma ye` | `kɛ a ma tasuma ye` | Benefactive (ma...ye pattern) |
-| `k'anw ma ko` | `ko anw ma ko` | Reported speech marker after `ma` |
-| `k'an kana` | `ko an kana` | Direct clause marker (`kana`) |
-| `k'an ka ta` | `ko an ka ta` | Direct clause marker (`ka`) |
-| `k'a ta` | `ka a ta` | Default (followed by verb `ta`) |
-| `k'a fɔ` | `ka a fɔ` | Default (followed by verb `fɔ`) |
-
-### Legacy Orthography
+### Legacy Orthography Conversion
 
 | Legacy | Modern | Notes |
 |--------|--------|-------|
@@ -153,7 +381,7 @@ The contraction `k'` is highly ambiguous and can derive from **three** different
 | `ò` | `ɔ` | Pre-standard spelling |
 | `ny` | `ɲ` | Digraph → single character |
 | `ng` | `ŋ` | Digraph → single character |
-| `ñ` | `ɲ` | Senegalese/Spanish variant |
+| `ñ` | `ɲ` | Spanish/Senegalese variant |
 
 ---
 
@@ -161,107 +389,106 @@ The contraction `k'` is highly ambiguous and can derive from **three** different
 
 ### Inherent Linguistic Ambiguity
 
-Some Bambara constructions are **genuinely ambiguous** and cannot be resolved without sentence-level or discourse-level context. This is not a limitation of the normalizer  it reflects real ambiguity in the language.
+> [!CAUTION]
+> Some Bambara constructions are **genuinely ambiguous** and cannot be resolved without broader context. This is not a bug  it reflects real ambiguity in the language.
 
-#### The `ye` Ambiguity
+#### The `ye` Problem
 
-The word `ye` has multiple grammatical functions in Bambara:
+The word `ye` has **five** grammatical functions:
 
-| Function | POS | Example | Meaning |
-|----------|-----|---------|---------|
-| Postposition | pp | `à fɔ́ ń yé` | say it **to** me |
-| Perfective auxiliary | pm | `ù ye ɲɔ̀ gòsi` | they **have** beaten the millet |
-| Equative copula | cop | `ò yé kɔ̀nɔ yé` | it **is** a bird |
-| Verb "to see" | v | `ka a ye` | **to see** it |
-| Imperative plural | pm | `á' yé nà!` | come! (you all) |
+| Function | Example | Meaning |
+|----------|---------|---------|
+| Postposition | `à fɔ́ ń yé` | say it **to** me |
+| Perfective | `ù ye ɲɔ̀ gòsi` | they **have** beaten |
+| Copula | `ò yé kɔ̀nɔ yé` | it **is** a bird |
+| Verb "see" | `ka a ye` | **to see** it |
+| Imperative | `á' yé nà!` | come! (plural) |
 
 This creates genuine ambiguity for `k'a ye`:
 
 | Interpretation | Expansion | Meaning |
 |----------------|-----------|---------|
 | Postposition | `kɛ a ye` | do it for him |
-| Verb "to see" | `ka a ye` | to see it |
+| Verb "see" | `ka a ye` | to see it |
 
-**Both are grammatically valid.** Without broader context, the normalizer cannot determine which is intended.
+**Default behavior:** The normalizer chooses `kɛ a ye` (postposition is more frequent).
 
-#### Default Behavior
+**Solution:** Use `mode="contract"` for ASR evaluation to avoid disambiguation penalties:
 
-When faced with true ambiguity, the normalizer chooses the **statistically more frequent** interpretation based on corpus data:
-
-| Ambiguous Input | Default Output | Reason |
-|-----------------|----------------|--------|
-| `k'a ye` | `kɛ a ye` | Postpositional `ye` is more frequent than verb `ye` |
-
-#### Extended Ambiguous Cases
-
-Even with more context, some sentences remain ambiguous:
-
-```
-Input:  k'a ye i ka so
+```python
+evaluator = BambaraEvaluator(mode="contract")
+# Both "kɛ a ye" and "ka a ye" => "k'a ye" 
 ```
 
-| Interpretation 1 | Interpretation 2 |
-|------------------|------------------|
-| `kɛ a ye i ka so` | `ka a ye i ka so` |
-| "do it for him at your house" | "to see him at your house" |
+### Scope
 
-Both readings are syntactically valid. The normalizer defaults to `kɛ` (postpositional interpretation), but users should be aware that the verb interpretation exists.
-
-<!-- ### Scope of Disambiguation
-
-The normalizer uses **local context** (1-3 word lookahead) for disambiguation. It does not:
-
+The normalizer uses **local context** (1-3 word lookahead). It does not:
 - Parse full sentence structure
-- Use a dictionary/lexicon for POS tagging
+- Use dictionary/lexicon for POS tagging
 - Consider discourse-level context
-- Handle rare or dialectal constructions
 
-For applications requiring higher accuracy on ambiguous cases, consider:
-- Using the [Daba morphological analyzer](https://github.com/maslinych/daba) with full dictionary lookup
-- Manual review of edge cases
-- Training a neural disambiguation model on annotated data -->
+---
 
-### What This Means for ASR Evaluation
+## Utility Functions
 
-For ASR evaluation purposes, these ambiguities are generally **acceptable** because:
+```python
+from bambara_normalizer.utilities import (
+    is_contraction,
+    can_contract,
+    find_contractions,
+    find_contractable_sequences,
+    compare_normalization_modes,
+    analyze_text,
+    is_bambara_vowel,
+    get_tone,
+    remove_tones,
+)
 
-1. Both expansions represent valid transcriptions of the same spoken input
-2. The normalizer applies the same default consistently to both reference and hypothesis
-3. True recognition errors (wrong words entirely) will still be caught
 
-The goal is **fair comparison**, not perfect linguistic analysis.
+is_contraction("b'a")                   
+is_contraction("bɛ")                     
+can_contract("bɛ a")                      
+
+# Find patterns in text
+find_contractions("B'a fɔ k'a ta")       # ["b'", "k'"]
+find_contractable_sequences("bɛ a fɔ")   # [('bɛ', 'a')]
+
+# Compare modes side-by-side
+compare_normalization_modes("b'a fɔ")
+# {'original': "b'a fɔ", 'expand': 'bɛ a fɔ', 'contract': "b'a fɔ", 'preserve': "b'a fɔ"}
+
+# Full text analysis
+analyze_text("B'a fɔ k'a la")
+# {'word_count': 4, 'contractions_found': ["b'", "k'"], 'has_tone_marks': False, ...}
+
+# Tone handling
+get_tone("fɔ́")                           # "high"
+remove_tones("fɔ́ bɛ̀")                    # "fɔ bɛ"
+```
 
 ---
 
 ## Evaluation Metrics
 
-| Metric | Description |
-|--------|-------------|
-| **WER** | Word Error Rate |
-| **CER** | Character Error Rate |
-| **MER** | Match Error Rate |
-| **WIL** | Word Information Lost |
-| **DER** | Diacritic Error Rate (tone accuracy) |
+| Metric | Description | Range |
+|--------|-------------|-------|
+| **WER** | Word Error Rate | 0.0 – ∞ |
+| **CER** | Character Error Rate | 0.0 – ∞ |
+| **MER** | Match Error Rate | 0.0 – 1.0 |
+| **WIL** | Word Information Lost | 0.0 – 1.0 |
+| **WIP** | Word Information Preserved | 0.0 – 1.0 |
+| **DER** | Diacritic Error Rate (tone accuracy) | 0.0 – ∞ |
 
 ---
 
-## Running Tests
 
-```bash
-pip install -e ".[dev]"
-pytest tests/ -v
-```
-
-Current test coverage: **78 tests passing** (2 skipped for edge cases requiring manual verification).
-
----
 
 ## References
 
 #### Linguistic Resources
-- [Bambara Reference Corpus](http://cormand.huma-num.fr/)  Primary corpus for Bambara
-- [Daba Morphological Analyzer](https://github.com/maslinych/daba)  Grammar rules for disambiguation
-- [Bamadaba Dictionary](http://cormand.huma-num.fr/bamadaba.html)  Bambara lexical database
+- [Bambara Reference Corpus](http://cormand.huma-num.fr/)  Primary corpus
+- [Daba Morphological Analyzer](https://github.com/maslinych/daba)  Grammar rules
+- [Bamadaba Dictionary](http://cormand.huma-num.fr/bamadaba.html)  Lexical database
 - DNAFLA / AMALAN  Bambara standardization body
 
 #### Standards
@@ -271,17 +498,9 @@ Current test coverage: **78 tests passing** (2 skipped for edge cases requiring 
 #### Tools
 - [jiwer](https://github.com/jitsi/jiwer)  ASR evaluation metrics
 
-#### Related Work & Broader TN/ITN
-- [Text Normalization and Inverse Text Normalization with NVIDIA NeMo](https://developer.nvidia.com/blog/text-normalization-and-inverse-text-normalization-with-nvidia-nemo/)
-- [NeMo Text Normalization Documentation](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/text_normalization/wfst/wfst_text_normalization.html)
-- [NeMo Grammar Customization Guide](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/text_normalization/wfst/wfst_customization.html)
-- [NVIDIA NeMo Repository](https://github.com/NVIDIA/NeMo)
-
----
-
-## License
-
-MIT License  see [LICENSE](LICENSE) for details.
+#### Related Work
+- [NVIDIA NeMo Text Normalization](https://github.com/NVIDIA/NeMo)
+- [NeMo TN/ITN Documentation](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/text_normalization/wfst/wfst_text_normalization.html)
 
 ---
 
