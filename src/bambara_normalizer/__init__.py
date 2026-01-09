@@ -16,6 +16,8 @@ __version__ = "1.0.0"
 __author__ = "sudoping01"
 __license__ = "MIT"
 
+
+
 from .evaluation import (
     BambaraEvaluator,
     BambaraTransform,
@@ -35,6 +37,14 @@ from .normalizer import (
     BambaraNormalizer,
     BambaraNormalizerConfig,
     create_normalizer,
+)
+from .numbers import (
+    bambara_to_number,
+    denormalize_numbers_in_text,
+    is_number_word,
+    normalize_numbers_in_text,
+    number_to_bambara,
+    number_to_ordinal,
 )
 from .utils import (
     BAMBARA_ALPHABET,
@@ -91,6 +101,15 @@ __all__ = [
     'BAMBARA_CONSONANTS',
     'BAMBARA_SPECIAL_CHARS',
     'BAMBARA_ALPHABET',
+
+
+    "number_to_bambara",
+    "bambara_to_number",
+    "normalize_numbers_in_text",
+    "denormalize_numbers_in_text",
+    "is_number_word",
+    "number_to_ordinal",
+
 ]
 
 
