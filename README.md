@@ -126,6 +126,70 @@ normalizer = BambaraNormalizer(BambaraNormalizerConfig.preserving_tones())
 normalizer = BambaraNormalizer(BambaraNormalizerConfig.minimal())
 ```
 
+
+---
+
+## Number Normalization
+
+The normalizer supports bidirectional number conversion between digits and Bambara words (TN/ITN).
+
+### With Normalizer
+```python
+from bambara_normalizer import normalize
+
+normalize("A ye 100 sɔrɔ", expand_numbers=True)   # → "a ye kɛmɛ sɔrɔ"
+normalize("A ye 100 sɔrɔ", expand_numbers=False)  # → "a ye 100 sɔrɔ"
+
+# WER preset has expand_numbers=True by default
+normalize("A ye 5 ta", preset="wer")  # → "a ye duuru ta"
+```
+
+### Digits to Words (Text Normalization)
+```python
+from bambara_normalizer import number_to_bambara, normalize_numbers_in_text
+
+
+number_to_bambara(5)        # → "duuru"
+number_to_bambara(123)      # → "kɛmɛ ni mugan ni saba"
+number_to_bambara(1000)     # → "waa kelen"
+number_to_bambara(5.3)      # → "duuru tomi saba"
+
+# In text
+normalize_numbers_in_text("A ye 5 wari di")      # → "A ye duuru wari di"
+normalize_numbers_in_text("Mɔgɔ 100 nana")       # → "Mɔgɔ kɛmɛ nana"
+normalize_numbers_in_text("N ye shekɛ 1000 sɔrɔ") # → "N ye shekɛ waa kelen sɔrɔ"
+```
+
+### Words to Digits (Inverse Text Normalization)
+```python
+from bambara_normalizer import bambara_to_number, denormalize_numbers_in_text
+
+bambara_to_number("duuru")                    # → 5
+bambara_to_number("kɛmɛ ni mugan ni saba")    # → 123
+bambara_to_number("duuru tomi saba")          # → 5.3
+
+# In text
+denormalize_numbers_in_text("A ye duuru di a ma")  # → "A ye 5 di a ma"
+denormalize_numbers_in_text("Mɔgɔ kɛmɛ nana")      # → "Mɔgɔ 100 nana"
+```
+
+
+
+### Number Vocabulary
+
+| Value | Bambara | Value | Bambara |
+|-------|---------|-------|---------|
+| 0 | fu | 10 | tan |
+| 1 | kelen | 20 | mugan |
+| 2 | fila | 30 | bi saba |
+| 3 | saba | 40 | bi naani |
+| 4 | naani | 50 | bi duuru |
+| 5 | duuru | 100 | kɛmɛ |
+| 6 | wɔɔrɔ | 1000 | waa |
+| 7 | wolonwula | 1,000,000 | milyɔn |
+| 8 | seegin | decimal | tomi |
+| 9 | kɔnɔntɔn | connector | ni |
+
 ---
 
 ## ASR Evaluation Framework
@@ -283,7 +347,7 @@ ko a  ─┘
 
 ```bash
 
-# default mode is expand1
+# default mode is expand
 bambara-normalize "B'a fɔ́"
 # Output: bɛ a fɔ
 
@@ -432,7 +496,7 @@ The normalizer uses **local context** (1-3 word lookahead). It does not:
 ## Utility Functions
 
 ```python
-from bambara_normalizer.utilities import (
+from bambara_normalizer import (
     is_contraction,
     can_contract,
     find_contractions,
@@ -442,6 +506,11 @@ from bambara_normalizer.utilities import (
     is_bambara_vowel,
     get_tone,
     remove_tones,
+    number_to_bambara,
+    bambara_to_number,
+    normalize_numbers_in_text,
+    denormalize_numbers_in_text,
+    is_number_word,
 )
 
 
@@ -464,7 +533,37 @@ analyze_text("B'a fɔ k'a la")
 # Tone handling
 get_tone("fɔ́")                           # "high"
 remove_tones("fɔ́ bɛ̀")                    # "fɔ bɛ"
+
+# Number conversion: digits → Bambara words
+number_to_bambara(5)                     # "duuru"
+number_to_bambara(23)                    # "mugan ni saba"
+number_to_bambara(100)                   # "kɛmɛ"
+number_to_bambara(123)                   # "kɛmɛ ni mugan ni saba"
+number_to_bambara(1000)                  # "waa kelen"
+number_to_bambara(5.3)                   # "duuru tomi saba"
+
+# Number conversion: Bambara words → digits
+bambara_to_number("duuru")               # 5
+bambara_to_number("mugan ni saba")       # 23
+bambara_to_number("kɛmɛ")                # 100
+bambara_to_number("waa kelen")           # 1000
+bambara_to_number("duuru tomi saba")     # 5.3
+
+# Number normalization in text
+normalize_numbers_in_text("A ye 5 di")       # "A ye duuru  di"
+normalize_numbers_in_text("Mɔgɔ 100 nana")        # "Mɔgɔ kɛmɛ nana"
+normalize_numbers_in_text("A be san 25 bɔ")       # "A be san mugan ni duuru bɔ"
+
+# Inverse: Bambara words → digits in text
+denormalize_numbers_in_text("A ye duuru wari di")  # "A ye 5 wari di"
+denormalize_numbers_in_text("Mɔgɔ kɛmɛ nana")      # "Mɔgɔ 100 nana"
+
+# Check if word is a number word
+is_number_word("duuru")                  # True
+is_number_word("kɛmɛ")                   # True
+is_number_word("fɔ")                     # False
 ```
+
 
 ---
 
