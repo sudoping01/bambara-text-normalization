@@ -1,6 +1,20 @@
-from typing import Callable, Dict, List, Optional, Set, Tuple
+"""
+Configuration for Bambara normalizer.
+"""
+
+from __future__ import annotations
+
+from typing import Optional
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+
+class ContractionMode(Enum):
+    """Mode for handling contractions."""
+    EXPAND = "expand"      # b'a → bɛ a (default)
+    CONTRACT = "contract"  # bɛ a → b'a
+    PRESERVE = "preserve"  # don't touch contractions
+
 
 class NormalizationLevel(Enum):
     MINIMAL = "minimal"
@@ -11,8 +25,10 @@ class NormalizationLevel(Enum):
 @dataclass
 class BambaraNormalizerConfig:
     """
+    Configuration for Bambara text normalization.
+    
     Attributes:
-        expand_contractions: Expand grammatical contractions (b'→bɛ, etc.)
+        contraction_mode: How to handle contractions ("expand", "contract", "preserve")
         preserve_tones: Keep tone diacritics (à, á, etc.)
         normalize_legacy_orthography: Convert old spellings (è→ɛ, ny→ɲ)
         lowercase: Convert to lowercase
@@ -26,7 +42,7 @@ class BambaraNormalizerConfig:
         strip_repetitions: Normalize repeated characters
         normalize_compounds: Standardize compound word spacing
     """
-    expand_contractions: bool = True
+    contraction_mode: str = "expand"  # "expand", "contract", or "preserve"
     preserve_tones: bool = True
     normalize_legacy_orthography: bool = True
     lowercase: bool = True
@@ -40,10 +56,25 @@ class BambaraNormalizerConfig:
     strip_repetitions: bool = False
     normalize_compounds: bool = False
     
+    # Legacy attribute for backward compatibility
+    @property
+    def expand_contractions(self) -> bool:
+        """Backward compatibility: True if mode is 'expand'."""
+        return self.contraction_mode == "expand"
+    
+    @expand_contractions.setter
+    def expand_contractions(self, value: bool) -> None:
+        """Backward compatibility setter."""
+        if value:
+            self.contraction_mode = "expand"
+        else:
+            self.contraction_mode = "preserve"
+    
     @classmethod
-    def for_wer_evaluation(cls) -> "BambaraNormalizerConfig":
+    def for_wer_evaluation(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
+        """Configuration optimized for WER evaluation."""
         return cls(
-            expand_contractions=True,
+            contraction_mode=mode,
             preserve_tones=False,  
             normalize_legacy_orthography=True,
             lowercase=True,
@@ -59,9 +90,10 @@ class BambaraNormalizerConfig:
         )
     
     @classmethod
-    def for_cer_evaluation(cls) -> "BambaraNormalizerConfig":
+    def for_cer_evaluation(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
+        """Configuration optimized for CER evaluation."""
         return cls(
-            expand_contractions=True,
+            contraction_mode=mode,
             preserve_tones=False,
             normalize_legacy_orthography=True,
             lowercase=True,
@@ -77,9 +109,10 @@ class BambaraNormalizerConfig:
         )
     
     @classmethod
-    def preserving_tones(cls) -> "BambaraNormalizerConfig":
+    def preserving_tones(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
+        """Configuration that preserves tone marks."""
         return cls(
-            expand_contractions=True,
+            contraction_mode=mode,
             preserve_tones=True,
             normalize_legacy_orthography=True,
             lowercase=True,
@@ -96,8 +129,9 @@ class BambaraNormalizerConfig:
     
     @classmethod
     def minimal(cls) -> "BambaraNormalizerConfig":
+        """Minimal normalization - only essential changes."""
         return cls(
-            expand_contractions=False,
+            contraction_mode="preserve",
             preserve_tones=True,
             normalize_legacy_orthography=False,
             lowercase=True,
@@ -113,10 +147,9 @@ class BambaraNormalizerConfig:
         )
 
 
-
-
 @dataclass
 class EvaluationResult:
+    """Results from ASR evaluation."""
     wer: float
     cer: float
     mer: float = 0.0  
@@ -124,18 +157,21 @@ class EvaluationResult:
     wip: float = 0.0  
     der: Optional[float] = None 
 
+    # Word-level details
     word_substitutions: int = 0
     word_deletions: int = 0
     word_insertions: int = 0
     word_hits: int = 0
     total_reference_words: int = 0
 
+    # Character-level details
     char_substitutions: int = 0
     char_deletions: int = 0
     char_insertions: int = 0
     char_hits: int = 0
     total_reference_chars: int = 0
 
+    # Normalized texts
     reference_normalized: str = ""
     hypothesis_normalized: str = ""
 
