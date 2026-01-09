@@ -1,19 +1,28 @@
-"""
-Configuration for Bambara normalizer.
-"""
+
+# Copyright 2026 sudoping01.
+
+# Licensed under the MIT License; you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+
+# https://opensource.org/licenses/MIT
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import annotations
 
-from typing import Optional
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
 
 
 class ContractionMode(Enum):
-    """Mode for handling contractions."""
-    EXPAND = "expand"      # b'a → bɛ a (default)
-    CONTRACT = "contract"  # bɛ a → b'a
-    PRESERVE = "preserve"  # don't touch contractions
+    EXPAND = "expand"
+    CONTRACT = "contract"
+    PRESERVE = "preserve"
 
 
 class NormalizationLevel(Enum):
@@ -26,7 +35,7 @@ class NormalizationLevel(Enum):
 class BambaraNormalizerConfig:
     """
     Configuration for Bambara text normalization.
-    
+
     Attributes:
         contraction_mode: How to handle contractions ("expand", "contract", "preserve")
         preserve_tones: Keep tone diacritics (à, á, etc.)
@@ -42,7 +51,7 @@ class BambaraNormalizerConfig:
         strip_repetitions: Normalize repeated characters
         normalize_compounds: Standardize compound word spacing
     """
-    contraction_mode: str = "expand"  # "expand", "contract", or "preserve"
+    contraction_mode: str = "expand"
     preserve_tones: bool = True
     normalize_legacy_orthography: bool = True
     lowercase: bool = True
@@ -55,13 +64,12 @@ class BambaraNormalizerConfig:
     handle_french_loanwords: bool = True
     strip_repetitions: bool = False
     normalize_compounds: bool = False
-    
-    # Legacy attribute for backward compatibility
+
     @property
     def expand_contractions(self) -> bool:
         """Backward compatibility: True if mode is 'expand'."""
         return self.contraction_mode == "expand"
-    
+
     @expand_contractions.setter
     def expand_contractions(self, value: bool) -> None:
         """Backward compatibility setter."""
@@ -69,13 +77,12 @@ class BambaraNormalizerConfig:
             self.contraction_mode = "expand"
         else:
             self.contraction_mode = "preserve"
-    
+
     @classmethod
-    def for_wer_evaluation(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
-        """Configuration optimized for WER evaluation."""
+    def for_wer_evaluation(cls, mode: str = "expand") -> BambaraNormalizerConfig:
         return cls(
             contraction_mode=mode,
-            preserve_tones=False,  
+            preserve_tones=False,
             normalize_legacy_orthography=True,
             lowercase=True,
             remove_punctuation=True,
@@ -88,10 +95,9 @@ class BambaraNormalizerConfig:
             strip_repetitions=True,
             normalize_compounds=True,
         )
-    
+
     @classmethod
-    def for_cer_evaluation(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
-        """Configuration optimized for CER evaluation."""
+    def for_cer_evaluation(cls, mode: str = "expand") -> BambaraNormalizerConfig:
         return cls(
             contraction_mode=mode,
             preserve_tones=False,
@@ -107,10 +113,9 @@ class BambaraNormalizerConfig:
             strip_repetitions=False,
             normalize_compounds=True,
         )
-    
+
     @classmethod
-    def preserving_tones(cls, mode: str = "expand") -> "BambaraNormalizerConfig":
-        """Configuration that preserves tone marks."""
+    def preserving_tones(cls, mode: str = "expand") -> BambaraNormalizerConfig:
         return cls(
             contraction_mode=mode,
             preserve_tones=True,
@@ -126,10 +131,9 @@ class BambaraNormalizerConfig:
             strip_repetitions=False,
             normalize_compounds=False,
         )
-    
+
     @classmethod
-    def minimal(cls) -> "BambaraNormalizerConfig":
-        """Minimal normalization - only essential changes."""
+    def minimal(cls) -> BambaraNormalizerConfig:
         return cls(
             contraction_mode="preserve",
             preserve_tones=True,
@@ -149,29 +153,25 @@ class BambaraNormalizerConfig:
 
 @dataclass
 class EvaluationResult:
-    """Results from ASR evaluation."""
     wer: float
     cer: float
-    mer: float = 0.0  
-    wil: float = 0.0  
-    wip: float = 0.0  
-    der: Optional[float] = None 
+    mer: float = 0.0
+    wil: float = 0.0
+    wip: float = 0.0
+    der: float | None = None
 
-    # Word-level details
     word_substitutions: int = 0
     word_deletions: int = 0
     word_insertions: int = 0
     word_hits: int = 0
     total_reference_words: int = 0
 
-    # Character-level details
     char_substitutions: int = 0
     char_deletions: int = 0
     char_insertions: int = 0
     char_hits: int = 0
     total_reference_chars: int = 0
 
-    # Normalized texts
     reference_normalized: str = ""
     hypothesis_normalized: str = ""
 
