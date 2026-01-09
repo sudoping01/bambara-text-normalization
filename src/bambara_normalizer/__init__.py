@@ -1,48 +1,31 @@
-"""
-Bambara (Bamanankan) Text Normalizer for ASR Evaluation
 
-A production-grade text normalizer specifically designed for Bambara language,
-handling contractions, special characters, tone marks, legacy orthography,
-and other linguistic features that affect WER/CER calculations.
+# Copyright 2026 sudoping01.
 
-Basic Usage:
-    >>> from bambara_normalizer import BambaraNormalizer
-    >>> normalizer = BambaraNormalizer()
-    >>> normalizer("B'a fɔ́!")
-    'bɛ a fɔ'
+# Licensed under the MIT License; you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
 
-For WER Evaluation:
-    >>> from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
-    >>> normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_wer_evaluation())
-    >>> normalizer("Ń t'à lɔ̀n!")
-    'n tɛ a lɔn'
+# https://opensource.org/licenses/MIT
 
-With Evaluation Metrics:
-    >>> from bambara_normalizer import BambaraEvaluator
-    >>> evaluator = BambaraEvaluator()
-    >>> result = evaluator.evaluate("B'a fɔ́", "BƐ a fɔ")
-    >>> print(f"WER: {result.wer:.2%}, CER: {result.cer:.2%}")
-"""
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 __version__ = "1.0.0"
-__author__ = "Claude (Anthropic)"
+__author__ = "sudoping01"
 __license__ = "MIT"
 
-from .normalizer import (
-    BambaraNormalizer,
-    BambaraNormalizerConfig,
-    # NormalizationLevel,
-    create_normalizer,
-)
+
 
 from .evaluation import (
     BambaraEvaluator,
     BambaraTransform,
     EvaluationResult,
-    compute_wer,
     compute_cer,
     compute_der,
     compute_mer,
+    compute_wer,
     compute_wil,
     compute_wip,
     create_bambara_transform,
@@ -50,24 +33,36 @@ from .evaluation import (
     evaluate_batch,
     visualize_alignment,
 )
-
+from .normalizer import (
+    BambaraNormalizer,
+    BambaraNormalizerConfig,
+    create_normalizer,
+)
+from .numbers import (
+    bambara_to_number,
+    denormalize_numbers_in_text,
+    is_number_word,
+    normalize_numbers_in_text,
+    number_to_bambara,
+    number_to_ordinal,
+)
 from .utils import (
-    is_bambara_char,
-    is_bambara_special_char,
-    get_base_char,
-    get_tone,
-    add_tone,
-    remove_tones,
-    has_tone_marks,
-    count_tone_marks,
-    validate_bambara_text,
-    analyze_text,
-    normalize_unicode_variants,
-    get_unicode_info,
-    BAMBARA_VOWELS,
+    BAMBARA_ALPHABET,
     BAMBARA_CONSONANTS,
     BAMBARA_SPECIAL_CHARS,
-    BAMBARA_ALPHABET,
+    BAMBARA_VOWELS,
+    add_tone,
+    analyze_text,
+    count_tone_marks,
+    get_base_char,
+    get_tone,
+    get_unicode_info,
+    has_tone_marks,
+    is_bambara_char,
+    is_bambara_special_char,
+    normalize_unicode_variants,
+    remove_tones,
+    validate_bambara_text,
 )
 
 __all__ = [
@@ -88,7 +83,7 @@ __all__ = [
     'visualize_alignment',
     'create_bambara_transform',
     'BambaraTransform',
-    
+
     'is_bambara_char',
     'is_bambara_special_char',
     'get_base_char',
@@ -101,25 +96,34 @@ __all__ = [
     'analyze_text',
     'normalize_unicode_variants',
     'get_unicode_info',
-    
+
     'BAMBARA_VOWELS',
     'BAMBARA_CONSONANTS',
     'BAMBARA_SPECIAL_CHARS',
     'BAMBARA_ALPHABET',
+
+
+    "number_to_bambara",
+    "bambara_to_number",
+    "normalize_numbers_in_text",
+    "denormalize_numbers_in_text",
+    "is_number_word",
+    "number_to_ordinal",
+
 ]
 
 
 def normalize(text: str, preset: str = "standard", **kwargs) -> str:
     """Convenience function for quick normalization.
-    
+
     Args:
         text: Text to normalize
         preset: Preset configuration ("standard", "wer", "cer", "minimal")
         **kwargs: Override specific configuration options
-        
+
     Returns:
         Normalized text
-        
+
     Example:
         >>> from bambara_normalizer import normalize
         >>> normalize("B'a fɔ́!")

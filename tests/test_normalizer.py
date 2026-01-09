@@ -7,9 +7,11 @@ from bambara_normalizer import (
     BambaraNormalizer,
     BambaraNormalizerConfig,
     analyze_text,
+    bambara_to_number,
     compute_cer,
     compute_wer,
     create_normalizer,
+    denormalize_numbers_in_text,
     evaluate,
     get_base_char,
     get_tone,
@@ -17,6 +19,8 @@ from bambara_normalizer import (
     is_bambara_char,
     is_bambara_special_char,
     normalize,
+    normalize_numbers_in_text,
+    number_to_bambara,
     remove_tones,
     validate_bambara_text,
 )
@@ -150,7 +154,7 @@ class TestBambaraNormalizer:
         assert '\u0301' not in decomposed
         assert '\u0300' not in decomposed
 
-    @pytest.mark.skip(reason="Number expansion disabled")
+    # @pytest.mark.skip(reason="Number expansion disabled")
     def test_number_expansion(self):
         config = BambaraNormalizerConfig.for_wer_evaluation()
         normalizer = BambaraNormalizer(config)
@@ -548,15 +552,11 @@ class TestRealWorldExamples:
 
 
 class TestContractionModes:
-    """Test the new contraction_mode feature: expand, contract, preserve."""
-
     def test_expand_mode_default(self):
-        """Test that expand mode is the default."""
         normalizer = BambaraNormalizer()
         assert normalizer("b'a fɔ") == "bɛ a fɔ"
 
     def test_expand_mode_explicit(self):
-        """Test expand mode explicitly set."""
         config = BambaraNormalizerConfig(contraction_mode="expand")
         normalizer = BambaraNormalizer(config)
         assert normalizer("b'a fɔ") == "bɛ a fɔ"
@@ -564,7 +564,6 @@ class TestContractionModes:
         assert normalizer("k'a la") == "kɛ a la"
 
     def test_contract_mode_simple(self):
-        """Test contract mode with simple cases."""
         config = BambaraNormalizerConfig(contraction_mode="contract")
         normalizer = BambaraNormalizer(config)
         assert normalizer("bɛ a fɔ") == "b'a fɔ"
@@ -572,7 +571,6 @@ class TestContractionModes:
         assert normalizer("ye a fɔ") == "y'a fɔ"
 
     def test_contract_mode_k_variants(self):
-        """Test contract mode with ka/kɛ/ko - all become k'."""
         config = BambaraNormalizerConfig(contraction_mode="contract")
         normalizer = BambaraNormalizer(config)
         assert normalizer("ka a ta") == "k'a ta"
@@ -580,28 +578,24 @@ class TestContractionModes:
         assert normalizer("ko an ka") == "k'an ka"
 
     def test_contract_mode_n_variants(self):
-        """Test contract mode with ni/na - both become n'."""
         config = BambaraNormalizerConfig(contraction_mode="contract")
         normalizer = BambaraNormalizer(config)
         assert normalizer("ni a ta") == "n'a ta"
         assert normalizer("na a ma") == "n'a ma"
 
     def test_preserve_mode_keeps_contracted(self):
-        """Test preserve mode keeps contracted forms."""
         config = BambaraNormalizerConfig(contraction_mode="preserve")
         normalizer = BambaraNormalizer(config)
         assert normalizer("b'a fɔ") == "b'a fɔ"
         assert normalizer("k'a ta") == "k'a ta"
 
     def test_preserve_mode_keeps_expanded(self):
-        """Test preserve mode keeps expanded forms."""
         config = BambaraNormalizerConfig(contraction_mode="preserve")
         normalizer = BambaraNormalizer(config)
         assert normalizer("bɛ a fɔ") == "bɛ a fɔ"
         assert normalizer("ka a ta") == "ka a ta"
 
     def test_contract_mode_complex_sentence(self):
-        """Test contract mode with complex sentences."""
         config = BambaraNormalizerConfig(contraction_mode="contract")
         normalizer = BambaraNormalizer(config)
         result = normalizer("ko u ka a ta")
@@ -609,7 +603,6 @@ class TestContractionModes:
         assert "k'a" in result
 
     def test_round_trip_expand_contract(self):
-        """Test that expand then contract gives consistent result."""
         expand_config = BambaraNormalizerConfig(contraction_mode="expand")
         contract_config = BambaraNormalizerConfig(contraction_mode="contract")
         expand_normalizer = BambaraNormalizer(expand_config)
@@ -621,12 +614,10 @@ class TestContractionModes:
         assert contracted == original
 
     def test_create_normalizer_with_mode(self):
-        """Test create_normalizer factory with mode parameter."""
         normalizer = create_normalizer("wer", mode="contract")
         assert normalizer("bɛ a fɔ") == "b'a fɔ"
 
     def test_normalize_convenience_with_mode(self):
-        """Test normalize() convenience function with mode."""
         assert normalize("b'a fɔ", mode="expand") == "bɛ a fɔ"
         assert normalize("bɛ a fɔ", mode="contract") == "b'a fɔ"
         assert normalize("b'a fɔ", mode="preserve") == "b'a fɔ"
@@ -658,6 +649,83 @@ class TestEdgeCases:
         nfc = unicodedata.normalize('NFC', 'é')
         nfd = unicodedata.normalize('NFD', 'é')
         assert normalizer(nfc) == normalizer(nfd)
+
+
+class TestNumberNormalization:
+
+    def test_number_to_bambara_units(self):
+        assert number_to_bambara(0) == "fu"
+        assert number_to_bambara(1) == "kelen"
+        assert number_to_bambara(5) == "duuru"
+        assert number_to_bambara(9) == "kɔnɔntɔn"
+
+    def test_number_to_bambara_tens(self):
+        assert number_to_bambara(10) == "tan"
+        assert number_to_bambara(15) == "tan ni duuru"
+        assert number_to_bambara(20) == "mugan"
+        assert number_to_bambara(25) == "mugan ni duuru"
+
+    def test_number_to_bambara_hundreds(self):
+        assert number_to_bambara(100) == "kɛmɛ"
+        assert number_to_bambara(123) == "kɛmɛ ni mugan ni saba"
+        assert number_to_bambara(200) == "kɛmɛ fila"
+        assert number_to_bambara(500) == "kɛmɛ duuru"
+
+    def test_number_to_bambara_thousands(self):
+        assert number_to_bambara(1000) == "waa kelen"
+        assert number_to_bambara(5000) == "waa duuru"
+        assert number_to_bambara(10000) == "waa tan"
+
+    def test_number_to_bambara_millions(self):
+        assert number_to_bambara(1000000) == "miliyɔn kelen"
+
+    def test_number_to_bambara_decimal(self):
+        assert number_to_bambara(5.3) == "duuru tomi saba"
+
+    def test_bambara_to_number_units(self):
+        assert bambara_to_number("fu") == 0
+        assert bambara_to_number("kelen") == 1
+        assert bambara_to_number("duuru") == 5
+
+    def test_bambara_to_number_compound(self):
+        assert bambara_to_number("tan ni duuru") == 15
+        assert bambara_to_number("kɛmɛ ni mugan ni saba") == 123
+        assert bambara_to_number("waa kelen") == 1000
+
+    def test_bambara_to_number_decimal(self):
+        assert bambara_to_number("duuru tomi saba") == 5.3
+
+    def test_normalize_numbers_in_text(self):
+        assert normalize_numbers_in_text("A ye 5 wari di") == "A ye duuru wari di"
+        assert normalize_numbers_in_text("Mɔgɔ 100 nana") == "Mɔgɔ kɛmɛ nana"
+
+    def test_denormalize_numbers_in_text(self):
+        assert denormalize_numbers_in_text("A ye duuru wari di") == "A ye 5 wari di"
+        assert denormalize_numbers_in_text("Mɔgɔ kɛmɛ nana") == "Mɔgɔ 100 nana"
+
+    def test_normalizer_with_expand_numbers(self):
+        result = normalize("A ye 5 wari di", expand_numbers=True)
+        assert "duuru" in result
+        assert "5" not in result
+
+    def test_normalizer_without_expand_numbers(self):
+        from bambara_normalizer import normalize
+        result = normalize("A ye 5 wari di", expand_numbers=False)
+        assert "5" in result
+        assert "duuru" not in result
+
+    def test_wer_preset_expands_numbers(self):
+        from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
+        config = BambaraNormalizerConfig.for_wer_evaluation()
+        normalizer = BambaraNormalizer(config)
+        result = normalizer("A ye 100 sɔrɔ")
+        assert "kɛmɛ" in result
+
+    def test_round_trip_number_conversion(self):
+        for n in [0, 1, 5, 10, 15, 20, 42, 100, 123, 500, 1000, 5000]:
+            bambara = number_to_bambara(n)
+            back = bambara_to_number(bambara)
+            assert back == n, f"Round trip failed for {n}: {bambara} -> {back}"
 
 
 if __name__ == "__main__":
