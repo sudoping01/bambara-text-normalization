@@ -3,7 +3,9 @@ Command-line interface for Bambara text normalizer.
 
 Usage:
     bambara-normalize "B'a fɔ́"
-    bambara-normalize --preset wer "B'a fɔ́"
+    bambara-normalize --mode expand "B'a fɔ́"
+    bambara-normalize --mode contract "bɛ a fɔ"
+    bambara-normalize --preset wer --mode contract "text"
     echo "text" | bambara-normalize
     bambara-normalize --file input.txt --output output.txt
     bambara-normalize --evaluate ref.txt hyp.txt
@@ -16,8 +18,8 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from  .normalizer import BambaraNormalizer, BambaraNormalizerConfig, create_normalizer
-from .evaluation import BambaraEvaluator, evaluate_batch
+from .normalizer import BambaraNormalizer, BambaraNormalizerConfig, create_normalizer
+from .evaluation import BambaraEvaluator
 
 
 def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
@@ -27,20 +29,31 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  Normalize text:
+  Normalize text (expand contractions, default):
     bambara-normalize "B'a fɔ́"
+    bambara-normalize --mode expand "k'a ta"
     
-  Use WER preset:
-    bambara-normalize --preset wer "Ń t'à lɔ̀n"
+  Contract expanded forms:
+    bambara-normalize --mode contract "bɛ a fɔ"
+    bambara-normalize --mode contract "ka a ta"
+    
+  Preserve contractions (don't touch):
+    bambara-normalize --mode preserve "B'a fɔ"
+    
+  Use WER preset with contraction:
+    bambara-normalize --preset wer --mode contract "ka a ta"
     
   Process file:
     bambara-normalize --file input.txt --output normalized.txt
+    bambara-normalize --mode contract --file input.txt
     
   Evaluate ASR output:
     bambara-normalize --evaluate reference.txt hypothesis.txt
+    bambara-normalize --evaluate --mode contract ref.txt hyp.txt
     
   Pipe from stdin:
     echo "B'a fɔ́" | bambara-normalize
+    echo "bɛ a fɔ" | bambara-normalize --mode contract
 """,
     )
     
@@ -48,6 +61,13 @@ Examples:
         "text",
         nargs="?",
         help="Text to normalize (reads from stdin if not provided)",
+    )
+    
+    parser.add_argument(
+        "--mode", "-m",
+        choices=["expand", "contract", "preserve"],
+        default="expand",
+        help="Contraction mode: expand (default), contract, or preserve",
     )
     
     parser.add_argument(
@@ -84,12 +104,6 @@ Examples:
     )
     
     parser.add_argument(
-        "--no-contractions",
-        action="store_true",
-        help="Don't expand contractions",
-    )
-    
-    parser.add_argument(
         "--expand-numbers",
         action="store_true",
         help="Expand numbers to Bambara words",
@@ -104,7 +118,7 @@ Examples:
     parser.add_argument(
         "--version", "-v",
         action="version",
-        version="%(prog)s 1.0.0",
+        version="%(prog)s 2.0.0",
     )
     
     return parser.parse_args(args)
@@ -113,20 +127,18 @@ Examples:
 def normalize_text(
     text: str,
     preset: str,
+    mode: str = "expand",
     preserve_tones: bool = False,
-    no_contractions: bool = False,
     expand_numbers: bool = False,
     debug: bool = False,
 ) -> str:
     kwargs = {}
     if preserve_tones:
         kwargs["preserve_tones"] = True
-    if no_contractions:
-        kwargs["expand_contractions"] = False
     if expand_numbers:
         kwargs["expand_numbers"] = True
     
-    normalizer = create_normalizer(preset, **kwargs)
+    normalizer = create_normalizer(preset, mode=mode, **kwargs)
     
     if debug:
         diff = normalizer.get_normalization_diff(text)
@@ -161,6 +173,7 @@ def run_evaluation(
     ref_path: Path,
     hyp_path: Path,
     preset: str,
+    mode: str = "expand",
 ) -> None:
     with open(ref_path, "r", encoding="utf-8") as f:
         references = [line.strip() for line in f if line.strip()]
@@ -176,7 +189,9 @@ def run_evaluation(
         )
         sys.exit(1)
     
-    evaluator = BambaraEvaluator(preset=preset)
+    # Create config with the specified mode
+    config = BambaraNormalizerConfig.for_wer_evaluation(mode=mode)
+    evaluator = BambaraEvaluator(config=config)
     aggregate, individual = evaluator.evaluate_batch(references, hypotheses)
     
     print("=" * 60)
@@ -185,6 +200,7 @@ def run_evaluation(
     print(f"Reference file: {ref_path}")
     print(f"Hypothesis file: {hyp_path}")
     print(f"Normalization preset: {preset}")
+    print(f"Contraction mode: {mode}")
     print(f"Total utterances: {len(references)}")
     print("-" * 60)
     print(f"Word Error Rate (WER): {aggregate.wer:.2%}")
@@ -207,18 +223,16 @@ def main(args: Optional[List[str]] = None) -> int:
     try:
         if parsed.evaluate:
             ref_path, hyp_path = parsed.evaluate
-            run_evaluation(ref_path, hyp_path, parsed.preset)
+            run_evaluation(ref_path, hyp_path, parsed.preset, parsed.mode)
             return 0
         
         kwargs = {}
         if parsed.preserve_tones:
             kwargs["preserve_tones"] = True
-        if parsed.no_contractions:
-            kwargs["expand_contractions"] = False
         if parsed.expand_numbers:
             kwargs["expand_numbers"] = True
         
-        normalizer = create_normalizer(parsed.preset, **kwargs)
+        normalizer = create_normalizer(parsed.preset, mode=parsed.mode, **kwargs)
         
         if parsed.file:
             process_file(parsed.file, parsed.output, normalizer)
@@ -236,8 +250,8 @@ def main(args: Optional[List[str]] = None) -> int:
         result = normalize_text(
             text,
             parsed.preset,
+            parsed.mode,
             parsed.preserve_tones,
-            parsed.no_contractions,
             parsed.expand_numbers,
             parsed.debug,
         )
