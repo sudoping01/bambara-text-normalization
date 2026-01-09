@@ -1,30 +1,15 @@
 
-# Copyright 2026 sudoping01.
-
-# Licensed under the MIT License; you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at:
-
-# https://opensource.org/licenses/MIT
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-
-
 from __future__ import annotations
 
 import re
 import unicodedata
 
 from .config import BambaraNormalizerConfig
+from .numbers import normalize_numbers_in_text
 
 
 class BambaraNormalizer:
-    """Bambara text normalizer.
+    """Bambara text normalizer for ASR evaluation.
 
     Handles Bambara-specific linguistic features including:
     - Special characters: ɛ, ɔ, ɲ, ŋ
@@ -72,35 +57,25 @@ class BambaraNormalizer:
         '\u02BB',
     ]
 
-    # =====================================================#
-    # POSTPOSITIONS COMPATIBLE WITH kɛ (verb "to do/make") #
-    # =====================================================#
+
     KE_POSTPOSITIONS = {
         'la', 'ye', 'fɛ', 'kɔnɔ', 'kɔ', 'kɔrɔ',
         'da', 'daa', 'kun', 'ɲɛ', 'ɲɛɛ', 'ɲɛfɛ',
         'bolo', 'sɛmɛ', 'cɛ', 'cɛma', 'kɔfɛ', 'kosɔn', 'kama',
     }
 
-    # ===========================================================#
-    # REPORTED SPEECH MARKERS (for ko disambiguation after 'ma') #
-    # ===========================================================#
+
     REPORTED_SPEECH_MARKERS = {
         'ko', 'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
         'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
     }
 
-    # ============================================#
-    # CLAUSE MARKERS (for k' => ko disambiguation)#
-    # ============================================#
+
     CLAUSE_MARKERS = {
         'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
         'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
         'yɛrɛ', 'de', 'dɛ',
     }
-
-    # =====================#
-    # CONTRACTION MAPPINGS #
-    # =====================#
 
     SIMPLE_CONTRACTIONS = {
         "b'": "bɛ ",
@@ -127,6 +102,7 @@ class BambaraNormalizer:
         'bɛ': "b'",
         'tɛ': "t'",
         'ye': "y'",
+        'ni': "n'",
         'na': "n'",
         'ka': "k'",
         'kɛ': "k'",
@@ -205,6 +181,9 @@ class BambaraNormalizer:
         if self.config.lowercase:
             text = self._lowercase(text)
 
+        if self.config.expand_numbers:
+            text = normalize_numbers_in_text(text)
+
         if not self.config.preserve_tones:
             text = self._remove_tone_marks(text)
         elif self.config.remove_diacritics_except_tones:
@@ -224,9 +203,6 @@ class BambaraNormalizer:
 
         return text
 
-    # ==================
-    # CONTRACTION MODE #
-    # ==================
 
     def _contract_text(self, text: str) -> str:
         """
@@ -259,7 +235,7 @@ class BambaraNormalizer:
                     contracted_prefix = self.CONTRACTION_PATTERNS[word_lower]
                     contracted = contracted_prefix + next_word
                     result.append(contracted)
-                    i += 2  # so let's skip both words
+                    i += 2  # Skip both words
                     continue
 
             result.append(word)
@@ -267,9 +243,6 @@ class BambaraNormalizer:
 
         return ' '.join(result)
 
-    # ================
-    # EXPANSION MODE #
-    # ================
 
     def _normalize_apostrophes(self, text: str) -> str:
         return self._apostrophe_pattern.sub("'", text)
@@ -435,9 +408,6 @@ class BambaraNormalizer:
 
         return ' '.join(result)
 
-    # ================#
-    # UTILITY METHODS #
-    # ================#
 
     def _strip_tones(self, word: str) -> str:
         nfd = unicodedata.normalize('NFD', word)
@@ -557,12 +527,11 @@ class BambaraNormalizer:
 
 def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) -> BambaraNormalizer:
     """
-    Factory function to create a normalizer with preset configuration and con.
+    Factory function to create a normalizer with preset configuration.
 
     Args:
         preset: One of "standard", "wer", "cer", "preserving_tones", "minimal"
         mode: Contraction mode - "expand", "contract", or "preserve"
-        config : custom configuration
         **kwargs: Override specific configuration options
 
     Returns:
@@ -573,7 +542,6 @@ def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) 
         >>> normalizer("bɛ a fɔ")
         "b'a fɔ"
     """
-
     presets = {
         "standard": BambaraNormalizerConfig,
         "wer": BambaraNormalizerConfig.for_wer_evaluation,
@@ -581,7 +549,6 @@ def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) 
         "preserving_tones": BambaraNormalizerConfig.preserving_tones,
         "minimal": BambaraNormalizerConfig.minimal,
     }
-
 
     if preset not in presets:
         raise ValueError(f"Unknown preset: {preset}. Choose from: {list(presets.keys())}")
