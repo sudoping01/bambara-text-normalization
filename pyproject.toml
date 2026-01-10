@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bambara-normalizer"
+name = "bambara-text-normalizer"
 version = "1.0.0"
-description = "Bambara (Bamanankan) text normalizer for ASR evaluation"
+description = "Text normalization (TN/ITN) and ASR evaluation framework for Bambara (Bamanankan) language processing"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
