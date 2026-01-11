@@ -59,6 +59,21 @@ from .numbers import (
     number_to_bambara,
     number_to_ordinal,
 )
+from .times import (
+    LERE,
+    MINITI,
+    NEGE_KANYE,
+    SEGONI,
+    bambara_to_duration,
+    bambara_to_time,
+    denormalize_times_in_text,
+    duration_to_bambara,
+    format_duration_bambara,
+    format_time_bambara,
+    is_time_word,
+    normalize_times_in_text,
+    time_to_bambara,
+)
 from .utils import (
     BAMBARA_ALPHABET,
     BAMBARA_CONSONANTS,
@@ -131,6 +146,19 @@ __all__ = [
     "is_bambara_day",
     "DAYS_OF_WEEK",
     "MONTHS",
+    "time_to_bambara",
+    "bambara_to_time",
+    "format_time_bambara",
+    "duration_to_bambara",
+    "bambara_to_duration",
+    "format_duration_bambara",
+    "normalize_times_in_text",
+    "denormalize_times_in_text",
+    "is_time_word",
+    "NEGE_KANYE",
+    "LERE",
+    "MINITI",
+    "SEGONI",
 ]
 
 
