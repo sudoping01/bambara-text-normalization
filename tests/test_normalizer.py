@@ -1,24 +1,37 @@
 import unicodedata
+from datetime import date
 
 import pytest
 
 from bambara_normalizer import (
+    DAYS_OF_WEEK,
+    MONTHS,
     BambaraEvaluator,
     BambaraNormalizer,
     BambaraNormalizerConfig,
     analyze_text,
+    bambara_to_date,
+    bambara_to_day_of_week,
+    bambara_to_month,
     bambara_to_number,
     compute_cer,
     compute_wer,
     create_normalizer,
+    date_to_bambara,
+    day_of_week_to_bambara,
     denormalize_numbers_in_text,
     evaluate,
+    format_date_bambara,
     get_base_char,
     get_tone,
     has_tone_marks,
     is_bambara_char,
+    is_bambara_day,
+    is_bambara_month,
     is_bambara_special_char,
+    month_to_bambara,
     normalize,
+    normalize_dates_in_text,
     normalize_numbers_in_text,
     number_to_bambara,
     remove_tones,
@@ -27,7 +40,6 @@ from bambara_normalizer import (
 
 
 class TestBambaraNormalizer:
-
     def test_basic_normalization(self):
         normalizer = BambaraNormalizer()
         assert normalizer("I ni ce") == "i ni ce"
@@ -144,15 +156,17 @@ class TestBambaraNormalizer:
         config = BambaraNormalizerConfig.preserving_tones()
         normalizer = BambaraNormalizer(config)
         result = normalizer("fɔ́lɔ̀")
-        assert "́" in unicodedata.normalize('NFD', result) or "̀" in unicodedata.normalize('NFD', result)
+        assert "́" in unicodedata.normalize("NFD", result) or "̀" in unicodedata.normalize(
+            "NFD", result
+        )
 
     def test_remove_tones_config(self):
         config = BambaraNormalizerConfig.for_wer_evaluation()
         normalizer = BambaraNormalizer(config)
         result = normalizer("fɔ́lɔ̀")
-        decomposed = unicodedata.normalize('NFD', result)
-        assert '\u0301' not in decomposed
-        assert '\u0300' not in decomposed
+        decomposed = unicodedata.normalize("NFD", result)
+        assert "\u0301" not in decomposed
+        assert "\u0300" not in decomposed
 
     # @pytest.mark.skip(reason="Number expansion disabled")
     def test_number_expansion(self):
@@ -170,11 +184,10 @@ class TestBambaraNormalizer:
         normalizer = BambaraNormalizer()
         decomposed = "e\u0301"
         result = normalizer(decomposed)
-        assert result == unicodedata.normalize('NFC', result)
+        assert result == unicodedata.normalize("NFC", result)
 
 
 class TestKDisambiguation:
-
     def test_ke_postposition_la(self):
         normalizer = BambaraNormalizer()
         assert normalizer("k'a la") == "kɛ a la"
@@ -384,7 +397,6 @@ class TestNormalizationConfigs:
 
 
 class TestWERCalculation:
-
     def test_identical_after_normalization(self):
         normalizer = BambaraNormalizer(BambaraNormalizerConfig.for_wer_evaluation())
         ref = "B'a fɔ́"
@@ -398,7 +410,7 @@ class TestWERCalculation:
         ref = "n bɛ taa"
         hyp = "n bɛ na"
         wer = compute_wer(ref, hyp, normalizer)
-        assert wer == pytest.approx(1/3)
+        assert wer == pytest.approx(1 / 3)
 
     def test_wer_deletion(self):
         normalizer = BambaraNormalizer()
@@ -416,7 +428,6 @@ class TestWERCalculation:
 
 
 class TestCERCalculation:
-
     def test_cer_identical(self):
         normalizer = BambaraNormalizer()
         cer = compute_cer("test", "test", normalizer)
@@ -427,11 +438,10 @@ class TestCERCalculation:
         ref = "abc"
         hyp = "abd"
         cer = compute_cer(ref, hyp, normalizer)
-        assert cer == pytest.approx(1/3)
+        assert cer == pytest.approx(1 / 3)
 
 
 class TestEvaluator:
-
     def test_evaluator_basic(self):
         evaluator = BambaraEvaluator()
         result = evaluator.evaluate("B'a fɔ", "bɛ a fɔ")
@@ -454,29 +464,28 @@ class TestEvaluator:
 
 
 class TestUtilityFunctions:
-
     def test_is_bambara_char(self):
-        assert is_bambara_char('a') is True
-        assert is_bambara_char('ɛ') is True
-        assert is_bambara_char('ŋ') is True
-        assert is_bambara_char('q') is False
+        assert is_bambara_char("a") is True
+        assert is_bambara_char("ɛ") is True
+        assert is_bambara_char("ŋ") is True
+        assert is_bambara_char("q") is False
 
     def test_is_bambara_special_char(self):
-        assert is_bambara_special_char('ɛ') is True
-        assert is_bambara_special_char('ɔ') is True
-        assert is_bambara_special_char('ɲ') is True
-        assert is_bambara_special_char('ŋ') is True
-        assert is_bambara_special_char('a') is False
+        assert is_bambara_special_char("ɛ") is True
+        assert is_bambara_special_char("ɔ") is True
+        assert is_bambara_special_char("ɲ") is True
+        assert is_bambara_special_char("ŋ") is True
+        assert is_bambara_special_char("a") is False
 
     def test_get_base_char(self):
-        assert get_base_char('á') == 'a'
-        assert get_base_char('ɛ́') == 'ɛ'
-        assert get_base_char('a') == 'a'
+        assert get_base_char("á") == "a"
+        assert get_base_char("ɛ́") == "ɛ"
+        assert get_base_char("a") == "a"
 
     def test_get_tone(self):
-        assert get_tone('á') == 'high'
-        assert get_tone('à') == 'low'
-        assert get_tone('a') is None
+        assert get_tone("á") == "high"
+        assert get_tone("à") == "low"
+        assert get_tone("a") is None
 
     def test_has_tone_marks(self):
         assert has_tone_marks("fɔ́lɔ̀") is True
@@ -494,15 +503,14 @@ class TestUtilityFunctions:
 
     def test_analyze_text(self):
         analysis = analyze_text("Ń b'à fɔ́")
-        assert 'word_count' in analysis
-        assert 'vowel_count' in analysis
-        assert 'contractions_found' in analysis
+        assert "word_count" in analysis
+        assert "vowel_count" in analysis
+        assert "contractions_found" in analysis
         # Check that we found a contraction containing b'
-        assert any("b'" in c for c in analysis['contractions_found'])
+        assert any("b'" in c for c in analysis["contractions_found"])
 
 
 class TestConvenienceFunction:
-
     def test_normalize_function(self):
         result = normalize("B'a fɔ́!")
         assert "bɛ" in result
@@ -515,12 +523,11 @@ class TestConvenienceFunction:
 
     def test_normalize_with_kwargs(self):
         result = normalize("B'a fɔ́!", preset="standard", preserve_tones=True)
-        decomposed = unicodedata.normalize('NFD', result)
-        assert '\u0301' in decomposed or '\u0300' in decomposed
+        decomposed = unicodedata.normalize("NFD", result)
+        assert "\u0301" in decomposed or "\u0300" in decomposed
 
 
 class TestRealWorldExamples:
-
     def test_example_sentence_1(self):
         normalizer = BambaraNormalizer()
         result = normalizer("Ń b'à fɛ̀")
@@ -624,7 +631,6 @@ class TestContractionModes:
 
 
 class TestEdgeCases:
-
     def test_only_punctuation(self):
         normalizer = BambaraNormalizer()
         assert normalizer("!!!???") == ""
@@ -646,13 +652,12 @@ class TestEdgeCases:
 
     def test_unicode_normalization_forms(self):
         normalizer = BambaraNormalizer()
-        nfc = unicodedata.normalize('NFC', 'é')
-        nfd = unicodedata.normalize('NFD', 'é')
+        nfc = unicodedata.normalize("NFC", "é")
+        nfd = unicodedata.normalize("NFD", "é")
         assert normalizer(nfc) == normalizer(nfd)
 
 
 class TestNumberNormalization:
-
     def test_number_to_bambara_units(self):
         assert number_to_bambara(0) == "fu"
         assert number_to_bambara(1) == "kelen"
@@ -710,12 +715,14 @@ class TestNumberNormalization:
 
     def test_normalizer_without_expand_numbers(self):
         from bambara_normalizer import normalize
+
         result = normalize("A ye 5 wari di", expand_numbers=False)
         assert "5" in result
         assert "duuru" not in result
 
     def test_wer_preset_expands_numbers(self):
         from bambara_normalizer import BambaraNormalizer, BambaraNormalizerConfig
+
         config = BambaraNormalizerConfig.for_wer_evaluation()
         normalizer = BambaraNormalizer(config)
         result = normalizer("A ye 100 sɔrɔ")
@@ -726,6 +733,162 @@ class TestNumberNormalization:
             bambara = number_to_bambara(n)
             back = bambara_to_number(bambara)
             assert back == n, f"Round trip failed for {n}: {bambara} -> {back}"
+
+
+class TestDateNormalization:
+    def test_date_to_bambara_basic(self):
+        result = date_to_bambara(2024, 10, 13)
+        assert "Oktɔburu" in result
+        assert "tile" in result
+        assert "tan ni saba" in result
+        assert "san" in result
+
+    def test_date_to_bambara_january(self):
+        result = date_to_bambara(2008, 1, 25)
+        assert "Zanwuye" in result
+        assert "mugan ni duuru" in result
+
+    def test_date_to_bambara_with_kalo(self):
+        result = date_to_bambara(2024, 10, 13, include_kalo=True)
+        assert "kalo" in result
+
+    def test_date_to_bambara_with_day_of_week(self):
+        # 13-10-2024 is a Sunday
+        result = date_to_bambara(2024, 10, 13, include_day_of_week=True)
+        assert "Kari" in result  # Sunday
+
+    def test_format_date_bambara_from_date_object(self):
+        d = date(2024, 10, 13)
+        result = format_date_bambara(d)
+        assert "Oktɔburu" in result
+
+    def test_format_date_bambara_from_string_french(self):
+        result = format_date_bambara("13-10-2024")
+        assert "Oktɔburu" in result
+        assert "tan ni saba" in result
+
+    def test_format_date_bambara_from_string_iso(self):
+        result = format_date_bambara("2024-10-13")
+        assert "Oktɔburu" in result
+
+    def test_bambara_to_date(self):
+        bambara = "Oktɔburu tile tan ni saba san baa fila ni mugan ni naani"
+        result = bambara_to_date(bambara)
+        assert result.year == 2024
+        assert result.month == 10
+        assert result.day == 13
+
+    def test_bambara_to_date_january(self):
+        bambara = "Zanwuye tile mugan ni duuru san baa fila ni seegin"
+        result = bambara_to_date(bambara)
+        assert result.month == 1
+        assert result.day == 25
+        assert result.year == 2008
+
+    def test_day_of_week_to_bambara(self):
+        assert day_of_week_to_bambara(0) == "Tɛnɛn"  # Monday
+        assert day_of_week_to_bambara(4) == "Juma"  # Friday
+        assert day_of_week_to_bambara(6) == "Kari"  # Sunday
+
+    def test_bambara_to_day_of_week(self):
+        assert bambara_to_day_of_week("Tɛnɛn") == 0
+        assert bambara_to_day_of_week("Juma") == 4
+        assert bambara_to_day_of_week("Kari") == 6
+
+    def test_month_to_bambara(self):
+        assert month_to_bambara(1) == "Zanwuye"
+        assert month_to_bambara(5) == "Mɛ"
+        assert month_to_bambara(10) == "Oktɔburu"
+        assert month_to_bambara(12) == "Desanburu"
+
+    def test_bambara_to_month(self):
+        assert bambara_to_month("Zanwuye") == 1
+        assert bambara_to_month("Mɛ") == 5
+        assert bambara_to_month("Oktɔburu") == 10
+
+    def test_normalize_dates_in_text_french_format(self):
+        text = "A bɛ na 13-10-2024 la"
+        result = normalize_dates_in_text(text)
+        assert "Oktɔburu" in result
+        assert "13-10-2024" not in result
+
+    def test_normalize_dates_in_text_iso_format(self):
+        text = "A bɛ na 2024-10-13 la"
+        result = normalize_dates_in_text(text)
+        assert "Oktɔburu" in result
+
+    def test_normalize_dates_in_text_multiple(self):
+        text = "13-10-2024 fo 25-01-2025"
+        result = normalize_dates_in_text(text)
+        assert "Oktɔburu" in result
+        assert "Zanwuye" in result
+
+    def test_is_bambara_month(self):
+        assert is_bambara_month("Oktɔburu") is True
+        assert is_bambara_month("oktɔburu") is True
+        assert is_bambara_month("October") is False
+
+    def test_is_bambara_day(self):
+        assert is_bambara_day("Juma") is True
+        assert is_bambara_day("juma") is True
+        assert is_bambara_day("Friday") is False
+
+    def test_all_months_defined(self):
+        assert len(MONTHS) == 12
+        for i in range(1, 13):
+            assert i in MONTHS
+
+    def test_all_days_defined(self):
+        assert len(DAYS_OF_WEEK) == 7
+        for i in range(7):
+            assert i in DAYS_OF_WEEK
+
+    def test_normalizer_with_expand_dates(self):
+        result = normalize("A bɛ na 13-10-2024 la", expand_dates=True)
+        assert "oktɔburu" in result
+        assert "13-10-2024" not in result
+
+    def test_normalizer_without_expand_dates(self):
+        # Must also disable punctuation removal to preserve dashes
+        result = normalize("A bɛ na 13-10-2024 la", expand_dates=False, remove_punctuation=False)
+        assert "13-10-2024" in result
+        assert "oktɔburu" not in result.lower()
+
+    def test_wer_preset_expands_dates(self):
+        config = BambaraNormalizerConfig.for_wer_evaluation()
+        normalizer = BambaraNormalizer(config)
+        result = normalizer("A bɛ na 13-10-2024 la")
+        assert "oktɔburu" in result
+
+    def test_round_trip_date_conversion(self):
+        original = date(2024, 10, 13)
+        bambara = format_date_bambara(original)
+        back = bambara_to_date(bambara)
+        assert back == original
+
+    def test_round_trip_multiple_dates(self):
+        dates = [
+            date(2024, 1, 1),
+            date(2024, 5, 15),
+            date(2024, 12, 31),
+            date(2000, 6, 20),
+        ]
+        for d in dates:
+            bambara = format_date_bambara(d)
+            back = bambara_to_date(bambara)
+            assert back == d, f"Round trip failed for {d}: {bambara} -> {back}"
+
+    def test_invalid_month_raises(self):
+        with pytest.raises(ValueError):
+            date_to_bambara(2024, 13, 1)
+        with pytest.raises(ValueError):
+            date_to_bambara(2024, 0, 1)
+
+    def test_invalid_day_raises(self):
+        with pytest.raises(ValueError):
+            date_to_bambara(2024, 10, 32)
+        with pytest.raises(ValueError):
+            date_to_bambara(2024, 10, 0)
 
 
 if __name__ == "__main__":
