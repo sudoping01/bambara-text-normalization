@@ -1,4 +1,3 @@
-
 # Copyright 2026 sudoping01.
 
 # Licensed under the MIT License; you may not use this file except in compliance with the License.
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class ContractionMode(Enum):
@@ -46,11 +44,13 @@ class BambaraNormalizerConfig:
         normalize_apostrophes: Standardize apostrophe variants
         normalize_special_chars: Handle variant forms of ɛ, ɔ, ɲ, ŋ
         expand_numbers: Convert digits to Bambara words
+        expand_dates: Convert date patterns (DD-MM-YYYY) to Bambara
         remove_diacritics_except_tones: Remove non-tonal diacritics
         handle_french_loanwords: Apply French word normalization
         strip_repetitions: Normalize repeated characters
         normalize_compounds: Standardize compound word spacing
     """
+
     contraction_mode: str = "expand"
     preserve_tones: bool = True
     normalize_legacy_orthography: bool = True
@@ -60,6 +60,7 @@ class BambaraNormalizerConfig:
     normalize_apostrophes: bool = True
     normalize_special_chars: bool = True
     expand_numbers: bool = False
+    expand_dates: bool = False
     remove_diacritics_except_tones: bool = False
     handle_french_loanwords: bool = True
     strip_repetitions: bool = False
@@ -90,6 +91,7 @@ class BambaraNormalizerConfig:
             normalize_apostrophes=True,
             normalize_special_chars=True,
             expand_numbers=True,
+            expand_dates=True,
             remove_diacritics_except_tones=True,
             handle_french_loanwords=True,
             strip_repetitions=True,
@@ -108,6 +110,7 @@ class BambaraNormalizerConfig:
             normalize_apostrophes=True,
             normalize_special_chars=True,
             expand_numbers=True,
+            expand_dates=True,
             remove_diacritics_except_tones=True,
             handle_french_loanwords=True,
             strip_repetitions=False,
@@ -126,6 +129,7 @@ class BambaraNormalizerConfig:
             normalize_apostrophes=True,
             normalize_special_chars=True,
             expand_numbers=False,
+            expand_dates=False,
             remove_diacritics_except_tones=False,
             handle_french_loanwords=False,
             strip_repetitions=False,
@@ -144,6 +148,7 @@ class BambaraNormalizerConfig:
             normalize_apostrophes=True,
             normalize_special_chars=False,
             expand_numbers=False,
+            expand_dates=False,
             remove_diacritics_except_tones=False,
             handle_french_loanwords=False,
             strip_repetitions=False,
