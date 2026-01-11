@@ -20,9 +20,7 @@ from datetime import time, timedelta
 from .numbers import bambara_to_number, number_to_bambara
 
 NEGE_KANYE = "Nɛgɛ kaɲɛ"
-TEMENNA = "tɛmɛnna"
 SANGA = "sanga"
-YE = "ye"
 NI = "ni"
 
 LERE = "lɛrɛ"
@@ -47,13 +45,13 @@ def time_to_bambara(hour: int, minute: int = 0, second: int = 0) -> str:
         'Nɛgɛ kaɲɛ kelen'
 
         >>> time_to_bambara(1, 5)
-        'Nɛgɛ kaɲɛ kelen tɛmɛnna ni sanga duuru ye'
+        'Nɛgɛ kaɲɛ kelen ni sanga duuru'
 
         >>> time_to_bambara(7, 30)
-        'Nɛgɛ kaɲɛ wolonwula tɛmɛnna ni sanga bi saba ye'
+        'Nɛgɛ kaɲɛ wolonwula ni sanga bi saba'
 
         >>> time_to_bambara(13, 50)
-        'Nɛgɛ kaɲɛ tan ni saba tɛmɛnna ni sanga bi duuru ye'
+        'Nɛgɛ kaɲɛ tan ni saba ni sanga bi duuru'
     """
     if hour < 0 or hour > 23:
         raise ValueError(f"Invalid hour: {hour}")
@@ -68,7 +66,7 @@ def time_to_bambara(hour: int, minute: int = 0, second: int = 0) -> str:
 
     if minute > 0 or second > 0:
         minute_word = number_to_bambara(minute)
-        parts.append(f"{TEMENNA} {NI} {SANGA} {minute_word} {YE}")
+        parts.append(f"{NI} {SANGA} {minute_word}")
 
         if second > 0:
             second_word = number_to_bambara(second)
@@ -90,10 +88,10 @@ def format_time_bambara(t: time | str) -> str:
     Examples:
         >>> from datetime import time
         >>> format_time_bambara(time(7, 30))
-        'Nɛgɛ kaɲɛ wolonwula tɛmɛnna ni sanga bi saba ye'
+        'Nɛgɛ kaɲɛ wolonwula ni sanga bi saba'
 
         >>> format_time_bambara("13:50")
-        'Nɛgɛ kaɲɛ tan ni saba tɛmɛnna ni sanga bi duuru ye'
+        'Nɛgɛ kaɲɛ tan ni saba ni sanga bi duuru'
     """
     if isinstance(t, str):
         t = parse_time_string(t)
@@ -131,7 +129,7 @@ def bambara_to_time(phrase: str) -> time:
         >>> bambara_to_time("Nɛgɛ kaɲɛ kelen")
         datetime.time(1, 0)
 
-        >>> bambara_to_time("Nɛgɛ kaɲɛ wolonwula tɛmɛnna ni sanga bi saba ye")
+        >>> bambara_to_time("Nɛgɛ kaɲɛ wolonwula ni sanga bi saba")
         datetime.time(7, 30)
     """
     phrase_lower = phrase.lower().strip()
@@ -142,37 +140,29 @@ def bambara_to_time(phrase: str) -> time:
 
     remainder = phrase_lower[len(nege_kanye_lower) :].strip()
 
-    temenna_lower = TEMENNA.lower()
-    if temenna_lower in remainder:
-        parts = remainder.split(temenna_lower)
+    sanga_lower = SANGA.lower()
+    segoni_lower = SEGONI.lower()
+
+    if sanga_lower in remainder:
+        ni_sanga = f"{NI.lower()} {sanga_lower}"
+        parts = remainder.split(ni_sanga)
         hour_phrase = parts[0].strip()
-        minute_part = parts[1].strip()
+        minute_part = parts[1].strip() if len(parts) > 1 else ""
 
         hour = int(bambara_to_number(hour_phrase))
 
-        sanga_lower = SANGA.lower()
-        ye_lower = YE.lower()
-
-        if sanga_lower in minute_part:
-            sanga_idx = minute_part.index(sanga_lower)
-            after_sanga = minute_part[sanga_idx + len(sanga_lower) :].strip()
-
-            segoni_lower = SEGONI.lower()
-            second = 0
-            if segoni_lower in after_sanga:
-                segoni_idx = after_sanga.index(segoni_lower)
-                minute_phrase = (
-                    after_sanga[:segoni_idx].replace(ye_lower, "").replace(NI.lower(), "").strip()
-                )
-                second_phrase = after_sanga[segoni_idx + len(segoni_lower) :].strip()
+        second = 0
+        if segoni_lower in minute_part:
+            ni_segoni = f"{NI.lower()} {segoni_lower}"
+            minute_parts = minute_part.split(ni_segoni)
+            minute_phrase = minute_parts[0].strip()
+            second_phrase = minute_parts[1].strip() if len(minute_parts) > 1 else ""
+            if second_phrase:
                 second = int(bambara_to_number(second_phrase))
-            else:
-                minute_phrase = after_sanga.replace(ye_lower, "").strip()
-
-            minute = int(bambara_to_number(minute_phrase))
         else:
-            minute = 0
-            second = 0
+            minute_phrase = minute_part
+
+        minute = int(bambara_to_number(minute_phrase)) if minute_phrase else 0
 
         return time(hour, minute, second)
     else:
@@ -236,7 +226,7 @@ def format_duration_bambara(d: timedelta | str) -> str:
         >>> format_duration_bambara("30min")
         'miniti bi saba'
 
-        >>> format_duration_bambara("1h30")
+        >>> format_duration_bambara("1h30min")
         'lɛrɛ kelen ni miniti bi saba'
 
         >>> format_duration_bambara("1h30min10s")
@@ -345,7 +335,7 @@ def normalize_times_in_text(text: str) -> str:
 
     Examples:
         >>> normalize_times_in_text("A nana 7:30 la")
-        'A nana Nɛgɛ kaɲɛ wolonwula tɛmɛnna ni sanga bi saba ye la'
+        'A nana Nɛgɛ kaɲɛ wolonwula ni sanga bi saba la'
 
         >>> normalize_times_in_text("A tagara 1h30min")
         'A tagara lɛrɛ kelen ni miniti bi saba'
@@ -389,9 +379,7 @@ def denormalize_times_in_text(text: str) -> str:
     Returns:
         Text with times converted to standard format
     """
-    nege_pattern = (
-        rf"{NEGE_KANYE}\s+(.+?)(?:\s+{TEMENNA}\s+{NI}\s+{SANGA}\s+(.+?)\s+{YE})?(?=\s|$|[.,!?])"
-    )
+    nege_pattern = rf"{NEGE_KANYE}\s+(.+?)(?:\s+{NI}\s+{SANGA}\s+(.+?))?(?=\s|$|[.,!?])"
 
     def replace_clock(match: re.Match) -> str:
         try:
@@ -445,7 +433,6 @@ def is_time_word(word: str) -> bool:
         NEGE_KANYE.lower(),
         "nɛgɛ",
         "kaɲɛ",
-        TEMENNA.lower(),
         SANGA.lower(),
         LERE.lower(),
         MINITI.lower(),
