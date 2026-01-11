@@ -1,4 +1,3 @@
-
 # Copyright 2026 sudoping01.
 
 # Licensed under the MIT License; you may not use this file except in compliance with the License.
@@ -21,24 +20,24 @@ import unicodedata
 # BAMBARA CHARACTER SETS #
 # =======================#
 
-BAMBARA_VOWELS = set('aeiouɛɔ')
-BAMBARA_VOWELS_UPPER = set('AEIOUƐƆ')
-BAMBARA_CONSONANTS = set('bcdfghjklmnprstwyzɲŋ')
-BAMBARA_CONSONANTS_UPPER = set('BCDFGHJKLMNPRSTWYZƝŊ')
-BAMBARA_SPECIAL_CHARS = set('ɛɔɲŋƐƆƝŊ')
-BAMBARA_NASAL_VOWELS = {'an', 'en', 'ɛn', 'in', 'on', 'ɔn', 'un'}
-BAMBARA_ALPHABET = set('abcdefghijklmnoprstuwyzɛɔɲŋ')
+BAMBARA_VOWELS = set("aeiouɛɔ")
+BAMBARA_VOWELS_UPPER = set("AEIOUƐƆ")
+BAMBARA_CONSONANTS = set("bcdfghjklmnprstwyzɲŋ")
+BAMBARA_CONSONANTS_UPPER = set("BCDFGHJKLMNPRSTWYZƝŊ")
+BAMBARA_SPECIAL_CHARS = set("ɛɔɲŋƐƆƝŊ")
+BAMBARA_NASAL_VOWELS = {"an", "en", "ɛn", "in", "on", "ɔn", "un"}
+BAMBARA_ALPHABET = set("abcdefghijklmnoprstuwyzɛɔɲŋ")
 
 # ===========#
 # TONE MARKS #
 # ===========#
 
 TONE_MARKS = {
-    '\u0300': 'low',      # grave accent
-    '\u0301': 'high',     # acute accent
-    '\u030C': 'rising',   # caron
-    '\u0302': 'falling',  # circumflex
-    '\u0304': 'mid',      # macron
+    "\u0300": "low",  # grave accent
+    "\u0301": "high",  # acute accent
+    "\u030c": "rising",  # caron
+    "\u0302": "falling",  # circumflex
+    "\u0304": "mid",  # macron
 }
 
 # =====================#
@@ -46,32 +45,33 @@ TONE_MARKS = {
 # =====================#
 
 CONTRACTION_MAP = {
-    'bɛ': "b'",
-    'tɛ': "t'",
-    'ye': "y'",
-    'ni': "n'",
-    'na': "n'",
-    'ka': "k'",
-    'kɛ': "k'",
-    'ko': "k'",
-    'ma': "m'",
-    'sa': "s'",
+    "bɛ": "b'",
+    "tɛ": "t'",
+    "ye": "y'",
+    "ni": "n'",
+    "na": "n'",
+    "ka": "k'",
+    "kɛ": "k'",
+    "ko": "k'",
+    "ma": "m'",
+    "sa": "s'",
 }
 
 EXPANSION_MAP = {
-    "b'": ['bɛ'],
-    "t'": ['tɛ'],
-    "y'": ['ye'],
-    "n'": ['ni', 'na'],  # Ambiguous
-    "k'": ['ka', 'kɛ', 'ko'],  # Ambiguous
-    "m'": ['ma'],
-    "s'": ['sa'],
+    "b'": ["bɛ"],
+    "t'": ["tɛ"],
+    "y'": ["ye"],
+    "n'": ["ni", "na"],  # Ambiguous
+    "k'": ["ka", "kɛ", "ko"],  # Ambiguous
+    "m'": ["ma"],
+    "s'": ["sa"],
 }
 
 
 # ====================#
 # CHARACTER FUNCTIONS #
 # ====================#
+
 
 def is_bambara_char(char: str) -> bool:
     base_char = get_base_char(char.lower())
@@ -93,13 +93,14 @@ def is_bambara_consonant(char: str) -> bool:
 
 
 def get_base_char(char: str) -> str:
-    decomposed = unicodedata.normalize('NFD', char)
-    return ''.join(c for c in decomposed if unicodedata.category(c) != 'Mn')
+    decomposed = unicodedata.normalize("NFD", char)
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
 
 
 # =============================================================================
 # TONE FUNCTIONS
 # =============================================================================
+
 
 def get_tone(char: str) -> str | None:
     """
@@ -111,7 +112,7 @@ def get_tone(char: str) -> str | None:
     Returns:
         Tone name ('low', 'high', 'rising', 'falling', 'mid') or None
     """
-    decomposed = unicodedata.normalize('NFD', char)
+    decomposed = unicodedata.normalize("NFD", char)
     for c in decomposed:
         if c in TONE_MARKS:
             return TONE_MARKS[c]
@@ -137,17 +138,17 @@ def add_tone(char: str, tone: str) -> str:
         raise ValueError(f"Unknown tone: {tone}. Valid: {list(TONE_MARKS.values())}")
 
     base = get_base_char(char)
-    return unicodedata.normalize('NFC', base + tone_to_mark[tone])
+    return unicodedata.normalize("NFC", base + tone_to_mark[tone])
 
 
 def remove_tones(text: str) -> str:
-    decomposed = unicodedata.normalize('NFD', text)
-    result = ''.join(c for c in decomposed if c not in TONE_MARKS)
-    return unicodedata.normalize('NFC', result)
+    decomposed = unicodedata.normalize("NFD", text)
+    result = "".join(c for c in decomposed if c not in TONE_MARKS)
+    return unicodedata.normalize("NFC", result)
 
 
 def has_tone_marks(text: str) -> bool:
-    decomposed = unicodedata.normalize('NFD', text)
+    decomposed = unicodedata.normalize("NFD", text)
     return any(c in TONE_MARKS for c in decomposed)
 
 
@@ -158,7 +159,7 @@ def count_tone_marks(text: str) -> dict[str, int]:
     Returns:
         Dictionary with tone names as keys and counts as values
     """
-    decomposed = unicodedata.normalize('NFD', text)
+    decomposed = unicodedata.normalize("NFD", text)
     counts = dict.fromkeys(TONE_MARKS.values(), 0)
     for c in decomposed:
         if c in TONE_MARKS:
@@ -169,6 +170,7 @@ def count_tone_marks(text: str) -> dict[str, int]:
 # ======================#
 # CONTRACTION FUNCTIONS #
 # ======================#
+
 
 def is_contraction(word: str) -> bool:
     """
@@ -297,6 +299,7 @@ def find_contractable_sequences(text: str) -> list[tuple[str, str]]:
 # SYLLABLE FUNCTIONS #
 # ===================#
 
+
 def is_nasal_vowel(chars: str) -> bool:
     if len(chars) != 2:
         return False
@@ -330,8 +333,8 @@ def split_syllables(word: str) -> list[str]:
 
         if char in BAMBARA_CONSONANTS:
             if i + 1 < len(word):
-                digraph = word[i:i+2]
-                if digraph in ('ny', 'ng', 'sh', 'kh', 'gb', 'gw'):
+                digraph = word[i : i + 2]
+                if digraph in ("ny", "ng", "sh", "kh", "gb", "gw"):
                     current += digraph
                     i += 2
                     continue
@@ -346,7 +349,7 @@ def split_syllables(word: str) -> list[str]:
                 if next_char == char:
                     current += next_char
                     i += 1
-                elif next_char == 'n' and (i + 2 >= len(word) or word[i + 2] not in BAMBARA_VOWELS):
+                elif next_char == "n" and (i + 2 >= len(word) or word[i + 2] not in BAMBARA_VOWELS):
                     current += next_char
                     i += 1
 
@@ -371,6 +374,7 @@ def split_syllables(word: str) -> list[str]:
 # VALIDATION FUNCTIONS #
 # =====================#
 
+
 def validate_bambara_text(text: str) -> tuple[bool, list[str]]:
     """
     Validate text for Bambara orthographic compliance.
@@ -385,14 +389,14 @@ def validate_bambara_text(text: str) -> tuple[bool, list[str]]:
 
     for i, char in enumerate(text):
         if char.isalpha() and not is_bambara_char(char):
-            if char not in 'qvxQVX':
+            if char not in "qvxQVX":
                 issues.append(f"Non-Bambara character '{char}' at position {i}")
 
     legacy_patterns = [
-        ('ny', 'Should use ɲ instead of ny'),
-        ('ng', 'Should use ŋ instead of ng (unless in compound)'),
-        ('è', 'Should use ɛ instead of è'),
-        ('ò', 'Should use ɔ instead of ò'),
+        ("ny", "Should use ɲ instead of ny"),
+        ("ng", "Should use ŋ instead of ng (unless in compound)"),
+        ("è", "Should use ɛ instead of è"),
+        ("ò", "Should use ɔ instead of ò"),
     ]
     text_lower = text.lower()
     for pattern, message in legacy_patterns:
@@ -415,24 +419,25 @@ def normalize_unicode_variants(text: str) -> str:
         Text with normalized characters
     """
     char_map = {
-        'ε': 'ɛ',   # Greek epsilon
-        'Ε': 'Ɛ',   # Greek capital epsilon
-        'є': 'ɛ',   # Cyrillic ie
-        'Є': 'Ɛ',   # Cyrillic capital ie
-        'э': 'ɛ',   # Cyrillic e
-        'Э': 'Ɛ',   # Cyrillic capital e
-        'ᴐ': 'ɔ',   # Small capital o
-        'ɳ': 'ŋ',   # Retroflex n (wrong)
-        'ñ': 'ɲ',   # Spanish ñ
-        'Ñ': 'Ɲ',
+        "ε": "ɛ",  # Greek epsilon
+        "Ε": "Ɛ",  # Greek capital epsilon
+        "є": "ɛ",  # Cyrillic ie
+        "Є": "Ɛ",  # Cyrillic capital ie
+        "э": "ɛ",  # Cyrillic e
+        "Э": "Ɛ",  # Cyrillic capital e
+        "ᴐ": "ɔ",  # Small capital o
+        "ɳ": "ŋ",  # Retroflex n (wrong)
+        "ñ": "ɲ",  # Spanish ñ
+        "Ñ": "Ɲ",
     }
 
-    return ''.join(char_map.get(c, c) for c in text)
+    return "".join(char_map.get(c, c) for c in text)
 
 
 # =============================================================================
 # ANALYSIS FUNCTIONS
 # =============================================================================
+
 
 def get_unicode_info(char: str) -> dict[str, str]:
     """
@@ -448,11 +453,11 @@ def get_unicode_info(char: str) -> dict[str, str]:
         char = char[0]
 
     return {
-        'character': char,
-        'codepoint': f'U+{ord(char):04X}',
-        'name': unicodedata.name(char, 'UNKNOWN'),
-        'category': unicodedata.category(char),
-        'decomposition': unicodedata.decomposition(char) or 'None',
+        "character": char,
+        "codepoint": f"U+{ord(char):04X}",
+        "name": unicodedata.name(char, "UNKNOWN"),
+        "category": unicodedata.category(char),
+        "decomposition": unicodedata.decomposition(char) or "None",
     }
 
 
@@ -485,19 +490,19 @@ def analyze_text(text: str) -> dict:
     is_valid, issues = validate_bambara_text(text)
 
     return {
-        'total_characters': len(text),
-        'alphabetic_characters': len(chars),
-        'word_count': len(words),
-        'vowel_count': vowels,
-        'consonant_count': consonants,
-        'special_char_count': special,
-        'tone_marks': tone_counts,
-        'has_tone_marks': has_tone_marks(text),
-        'contractions_found': contractions_found,
-        'contractable_sequences': contractable,
-        'is_valid_orthography': is_valid,
-        'orthography_issues': issues,
-        'unique_characters': sorted({c for c in text if c.isalpha()}),
+        "total_characters": len(text),
+        "alphabetic_characters": len(chars),
+        "word_count": len(words),
+        "vowel_count": vowels,
+        "consonant_count": consonants,
+        "special_char_count": special,
+        "tone_marks": tone_counts,
+        "has_tone_marks": has_tone_marks(text),
+        "contractions_found": contractions_found,
+        "contractable_sequences": contractable,
+        "is_valid_orthography": is_valid,
+        "orthography_issues": issues,
+        "unique_characters": sorted({c for c in text if c.isalpha()}),
     }
 
 
@@ -509,33 +514,33 @@ def create_pronunciation_key() -> dict[str, str]:
         Dictionary mapping characters to IPA pronunciations
     """
     return {
-        'a': '[a]',
-        'b': '[b]',
-        'c': '[tʃ]',
-        'd': '[d]',
-        'e': '[e]',
-        'ɛ': '[ɛ]',
-        'f': '[f]',
-        'g': '[g]',
-        'h': '[h]',
-        'i': '[i]',
-        'j': '[dʒ]',
-        'k': '[k]',
-        'l': '[l]',
-        'm': '[m]',
-        'n': '[n]',
-        'ɲ': '[ɲ]',
-        'ŋ': '[ŋ]',
-        'o': '[o]',
-        'ɔ': '[ɔ]',
-        'p': '[p]',
-        'r': '[r]',
-        's': '[s]',
-        't': '[t]',
-        'u': '[u]',
-        'w': '[w]',
-        'y': '[j]',
-        'z': '[z]',
+        "a": "[a]",
+        "b": "[b]",
+        "c": "[tʃ]",
+        "d": "[d]",
+        "e": "[e]",
+        "ɛ": "[ɛ]",
+        "f": "[f]",
+        "g": "[g]",
+        "h": "[h]",
+        "i": "[i]",
+        "j": "[dʒ]",
+        "k": "[k]",
+        "l": "[l]",
+        "m": "[m]",
+        "n": "[n]",
+        "ɲ": "[ɲ]",
+        "ŋ": "[ŋ]",
+        "o": "[o]",
+        "ɔ": "[ɔ]",
+        "p": "[p]",
+        "r": "[r]",
+        "s": "[s]",
+        "t": "[t]",
+        "u": "[u]",
+        "w": "[w]",
+        "y": "[j]",
+        "z": "[z]",
     }
 
 
@@ -553,9 +558,9 @@ def compare_normalization_modes(text: str) -> dict[str, str]:
     """
     from .normalizer import BambaraNormalizer, BambaraNormalizerConfig
 
-    results = {'original': text}
+    results = {"original": text}
 
-    for mode in ['expand', 'contract', 'preserve']:
+    for mode in ["expand", "contract", "preserve"]:
         config = BambaraNormalizerConfig(contraction_mode=mode)
         normalizer = BambaraNormalizer(config)
         results[mode] = normalizer(text)
