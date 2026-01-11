@@ -42,7 +42,6 @@ pip install git+https://github.com/sudoping01/bambara-text-normalization.git
 
 
 
-
 ```python
 from bambara_normalizer import normalize
 
@@ -76,7 +75,8 @@ text = normalize(
     remove_punctuation=False,           
     normalize_whitespace=True,         
     normalize_apostrophes=True,         
-    normalize_special_chars=True,     
+    normalize_special_chars=True,    
+    expand_dates = False,
     expand_numbers=False,             
     remove_diacritics_except_tones=False,  
     handle_french_loanwords=True,   
@@ -186,11 +186,92 @@ denormalize_numbers_in_text("Mɔgɔ kɛmɛ nana")      # → "Mɔgɔ 100 nana"
 | 4 | naani | 50 | bi duuru |
 | 5 | duuru | 100 | kɛmɛ |
 | 6 | wɔɔrɔ | 1000 | waa |
-| 7 | wolonwula | 1,000,000 | milyɔn |
+| 7 | wolonwula | 1,000,000 | miliyɔn |
 | 8 | seegin | decimal | tomi |
 | 9 | kɔnɔntɔn | connector | ni |
 
 ---
+---
+
+## Date Normalization
+
+The normalizer supports bidirectional date conversion between standard formats and Bambara expressions (TN/ITN).
+
+### With Normalizer
+```python
+from bambara_normalizer import normalize
+
+normalize("A bɛ na 13-10-2024 la", expand_dates=True)   # ==> "a bɛ na oktɔburu tile tan ni saba san Baa fila ni mugan ni naani la"
+normalize("A bɛ na 13-10-2024 la", expand_dates=False)  # → "a bɛ na 13-10-2024 la"
+
+# WER preset has expand_dates=True by default
+normalize("A bɛ na 25-01-2008 la", preset="wer")  # → "a bɛ na zanwuye tile mugan ni duuru san Baa fila ni seegin la"
+```
+
+### Date to Bambara (Text Normalization)
+```python
+from bambara_normalizer import date_to_bambara, format_date_bambara, normalize_dates_in_text
+from datetime import date
+
+# Single dates
+date_to_bambara(2024, 10, 13)      # → "Oktɔburu tile tan ni saba san baa fila ni mugan ni naani"
+date_to_bambara(2008, 1, 25)       # → "Zanwuye tile mugan ni duuru san baa fila ni seegin"
+
+# With "kalo" (month) included
+date_to_bambara(2024, 10, 13, include_kalo=True)  # → "Oktɔburu kalo tile tan ni saba san ..."
+
+# With day of week
+date_to_bambara(2024, 10, 13, include_day_of_week=True)  # → "Kari Oktɔburu tile ..." (Sunday)
+
+# From date object or string
+format_date_bambara(date(2024, 10, 13))  # → "Oktɔburu tile tan ni saba san ..."
+format_date_bambara("13-10-2024")        # → "Oktɔburu tile tan ni saba san ..."
+
+# In text
+normalize_dates_in_text("A bɛ na 13-10-2024 la")  # → "A bɛ na Oktɔburu tile tan ni saba san baa fila ni mugan ni naani la"
+```
+
+### Bambara to Date (Inverse Text Normalization)
+```python
+from bambara_normalizer import bambara_to_date
+
+bambara_to_date("Oktɔburu tile tan ni saba san baa fila ni mugan ni naani")
+# → datetime.date(2024, 10, 13)
+
+bambara_to_date("Zanwuye tile mugan ni duuru san baa fila ni seegin")
+# → datetime.date(2008, 1, 25)
+```
+
+### Date Format
+
+Bambara dates follow this structure:
+```
+[Month] (kalo) tile [day] san [year]
+```
+
+Example: **13-10-2024** → `Oktɔburu tile tan ni saba san baa fila ni mugan ni naani`
+
+Literal translation: "October day thirteen year two thousand twenty-four"
+
+### Days of the Week
+
+| Day | Bambara | Day | Bambara |
+|-----|---------|-----|---------|
+| Monday | Tɛnɛn | Friday | Juma |
+| Tuesday | Tarata | Saturday | Sibiri |
+| Wednesday | Araba | Sunday | Kari |
+| Thursday | Alamisa | | |
+
+### Months of the Year
+
+| Month | Bambara | Month | Bambara |
+|-------|---------|-------|---------|
+| January | Zanwuye | July | Zuluye |
+| February | Feburuye | August | Uti |
+| March | Marsi | September | Sɛtanburu |
+| April | Awirili | October | Oktɔburu |
+| May | Mɛ | November | Nɔwanburu |
+| June | Zuwen | December | Desanburu |
 
 ## ASR Evaluation Framework
 
@@ -511,6 +592,18 @@ from bambara_normalizer import (
     normalize_numbers_in_text,
     denormalize_numbers_in_text,
     is_number_word,
+    
+    bambara_to_date,
+    bambara_to_day_of_week,
+    bambara_to_month,
+    date_to_bambara,
+    day_of_week_to_bambara,
+    denormalize_dates_in_text,
+    format_date_bambara,
+    is_bambara_day,
+    is_bambara_month,
+    month_to_bambara,
+    normalize_dates_in_text,
 )
 
 
@@ -555,13 +648,34 @@ normalize_numbers_in_text("Mɔgɔ 100 nana")        # "Mɔgɔ kɛmɛ nana"
 normalize_numbers_in_text("A be san 25 bɔ")       # "A be san mugan ni duuru bɔ"
 
 # Inverse: Bambara words → digits in text
-denormalize_numbers_in_text("A ye duuru wari di")  # "A ye 5 wari di"
+denormalize_numbers_in_text("A ye duuru di")  # "A ye 5  di"
 denormalize_numbers_in_text("Mɔgɔ kɛmɛ nana")      # "Mɔgɔ 100 nana"
 
 # Check if word is a number word
 is_number_word("duuru")                  # True
 is_number_word("kɛmɛ")                   # True
 is_number_word("fɔ")                     # False
+
+
+# Date conversion: dates → Bambara
+date_to_bambara(2024, 10, 13)            # "Oktɔburu tile tan ni saba san baa fila ni mugan ni naani"
+format_date_bambara("13-10-2024")        # Same as above
+
+# Date conversion: Bambara → dates
+bambara_to_date("Oktɔburu tile tan ni saba san baa fila ni mugan ni naani")  # datetime.date(2024, 10, 13)
+
+# Day/Month helpers
+day_of_week_to_bambara(0)                # "Tɛnɛn" (Monday)
+day_of_week_to_bambara(6)                # "Kari" (Sunday)
+month_to_bambara(10)                     # "Oktɔburu"
+bambara_to_month("Oktɔburu")             # 10
+
+# Date normalization in text
+normalize_dates_in_text("A bɛ na 13-10-2024 la")  # "A bɛ na Oktɔburu tile ... la"
+
+# Check if word is date-related
+is_bambara_month("Oktɔburu")             # True
+is_bambara_day("Juma")                   # True
 ```
 
 
