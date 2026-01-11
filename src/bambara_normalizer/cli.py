@@ -1,4 +1,3 @@
-
 # Copyright 2026 sudoping01.
 
 # Licensed under the MIT License; you may not use this file except in compliance with the License.
@@ -78,33 +77,38 @@ Examples:
     )
 
     parser.add_argument(
-        "--mode", "-m",
+        "--mode",
+        "-m",
         choices=["expand", "contract", "preserve"],
         default="expand",
         help="Contraction mode: expand (default), contract, or preserve",
     )
 
     parser.add_argument(
-        "--preset", "-p",
+        "--preset",
+        "-p",
         choices=["standard", "wer", "cer", "minimal", "preserving_tones"],
         default="standard",
         help="Normalization preset (default: standard)",
     )
 
     parser.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         type=Path,
         help="Input file to normalize",
     )
 
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         help="Output file (default: stdout)",
     )
 
     parser.add_argument(
-        "--evaluate", "-e",
+        "--evaluate",
+        "-e",
         nargs=2,
         metavar=("REF", "HYP"),
         type=Path,
@@ -130,7 +134,8 @@ Examples:
     )
 
     parser.add_argument(
-        "--version", "-v",
+        "--version",
+        "-v",
         action="version",
         version="%(prog)s 2.0.0",
     )
@@ -169,7 +174,7 @@ def process_file(
     output_path: Path | None,
     normalizer: BambaraNormalizer,
 ) -> None:
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     normalized = [normalizer(line.rstrip("\n")) for line in lines]
@@ -189,10 +194,10 @@ def run_evaluation(
     preset: str,
     mode: str = "expand",
 ) -> None:
-    with open(ref_path, "r", encoding="utf-8") as f:
+    with open(ref_path, encoding="utf-8") as f:
         references = [line.strip() for line in f if line.strip()]
 
-    with open(hyp_path, "r", encoding="utf-8") as f:
+    with open(hyp_path, encoding="utf-8") as f:
         hypotheses = [line.strip() for line in f if line.strip()]
 
     if len(references) != len(hypotheses):
@@ -257,7 +262,10 @@ def main(args: list[str] | None = None) -> int:
             text = sys.stdin.read().strip()
         else:
             print("Error: No input provided", file=sys.stderr)
-            print("Usage: bambara-normalize <text> or echo <text> | bambara-normalize", file=sys.stderr)
+            print(
+                "Usage: bambara-normalize <text> or echo <text> | bambara-normalize",
+                file=sys.stderr,
+            )
             return 1
 
         result = normalize_text(

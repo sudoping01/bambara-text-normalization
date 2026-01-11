@@ -18,7 +18,6 @@ Examples:
 from __future__ import annotations
 
 import re
-from typing import Union
 
 UNITS = [
     "fu",
@@ -62,8 +61,6 @@ DECIMAL_SEP = "tomi"
 CONNECTOR = "ni"
 
 
-
-
 def number_to_bambara(n: int | float | str) -> str:
     """
     Convert a number to Bambara words.
@@ -92,12 +89,12 @@ def number_to_bambara(n: int | float | str) -> str:
     """
     if isinstance(n, str):
         n = n.strip()
-        if n.count('.') > 1 or (n.count(',') > 0 and n.count('.') == 0):
-            n = n.replace('.', '').replace(',', '')
-        elif ',' in n:
-            n = n.replace(',', '.')
+        if n.count(".") > 1 or (n.count(",") > 0 and n.count(".") == 0):
+            n = n.replace(".", "").replace(",", "")
+        elif "," in n:
+            n = n.replace(",", ".")
 
-        if '.' in n:
+        if "." in n:
             n = float(n)
         else:
             n = int(n)
@@ -167,10 +164,10 @@ def _int_to_bambara(n: int) -> str:
 
 def _float_to_bambara(n: float) -> str:
     str_n = str(n)
-    if '.' not in str_n:
+    if "." not in str_n:
         return _int_to_bambara(int(n))
 
-    int_part, dec_part = str_n.split('.')
+    int_part, dec_part = str_n.split(".")
     int_word = _int_to_bambara(int(int_part)) if int_part else UNITS[0]
 
     dec_word = _digits_to_bambara(dec_part)
@@ -183,11 +180,13 @@ def _digits_to_bambara(digits: str) -> str:
 
 
 UNIT_VALUES = {word: i for i, word in enumerate(UNITS)}
-UNIT_VALUES.update({
-    "kelenn": 1,
-    "segin": 8,
-    "kɔnɔtɔn": 9,
-})
+UNIT_VALUES.update(
+    {
+        "kelenn": 1,
+        "segin": 8,
+        "kɔnɔtɔn": 9,
+    }
+)
 
 TENS_VALUES = {
     "tan": 10,
@@ -214,11 +213,11 @@ MULTIPLIER_VALUES = {
 }
 
 NUMBER_TOKENS = (
-    set(UNITS) |
-    set(UNIT_VALUES.keys()) |
-    {"tan", "mugan", "bi"} |
-    set(MULTIPLIER_VALUES.keys()) |
-    {CONNECTOR, DECIMAL_SEP, "tomi"}
+    set(UNITS)
+    | set(UNIT_VALUES.keys())
+    | {"tan", "mugan", "bi"}
+    | set(MULTIPLIER_VALUES.keys())
+    | {CONNECTOR, DECIMAL_SEP, "tomi"}
 )
 
 
@@ -273,13 +272,13 @@ def _parse_bambara_int(phrase: str) -> int:
             return value
 
         if phrase.startswith(tens_phrase + " "):
-            remainder = phrase[len(tens_phrase):].strip()
+            remainder = phrase[len(tens_phrase) :].strip()
             if remainder.startswith(CONNECTOR):
-                remainder = remainder[len(CONNECTOR):].strip()
+                remainder = remainder[len(CONNECTOR) :].strip()
                 return value + _parse_bambara_int(remainder)
 
-
-    parts = [p.strip() for p in phrase.split(CONNECTOR) if p.strip()]
+    # parts = [p.strip() for p in phrase.split(CONNECTOR) if p.strip()]
+    parts = [p.strip() for p in phrase.split(f" {CONNECTOR} ") if p.strip()]
 
     total = 0
 
@@ -344,8 +343,6 @@ def _parse_decimal_digits(phrase: str) -> str:
     return "".join(digits) if digits else "0"
 
 
-
-
 def normalize_numbers_in_text(text: str) -> str:
     """
     Replace all numerals in text with Bambara words.
@@ -362,6 +359,7 @@ def normalize_numbers_in_text(text: str) -> str:
         >>> normalize_numbers_in_text("Mɔgɔ 100 nana")
         'Mɔgɔ kɛmɛ nana'
     """
+
     def replace_number(match: re.Match) -> str:
         num_str = match.group(0)
         try:
@@ -369,7 +367,7 @@ def normalize_numbers_in_text(text: str) -> str:
         except (ValueError, IndexError):
             return num_str
 
-    pattern = r'\d[\d.,]*'
+    pattern = r"\d[\d.,]*"
     return re.sub(pattern, replace_number, text)
 
 
@@ -397,10 +395,10 @@ def denormalize_numbers_in_text(text: str) -> str:
         token_lower = token.lower()
 
         is_number_token = (
-            token_lower in NUMBER_TOKENS or
-            token_lower in UNIT_VALUES or
-            token_lower in MULTIPLIER_VALUES or
-            token_lower.startswith("bi")
+            token_lower in NUMBER_TOKENS
+            or token_lower in UNIT_VALUES
+            or token_lower in MULTIPLIER_VALUES
+            or token_lower.startswith("bi")
         )
 
         if is_number_token:
@@ -437,14 +435,12 @@ def denormalize_numbers_in_text(text: str) -> str:
 def is_number_word(word: str) -> bool:
     word_lower = word.lower()
     return (
-        word_lower in NUMBER_TOKENS or
-        word_lower in UNIT_VALUES or
-        word_lower in MULTIPLIER_VALUES
+        word_lower in NUMBER_TOKENS or word_lower in UNIT_VALUES or word_lower in MULTIPLIER_VALUES
     )
 
 
-
 ORDINAL_SUFFIX = "nan"
+
 
 def number_to_ordinal(n: int) -> str:
     """
@@ -477,4 +473,3 @@ def number_to_ordinal(n: int) -> str:
 #     "TENS",
 #     "NUMBER_TOKENS",
 # ]
-

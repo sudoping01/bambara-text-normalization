@@ -18,6 +18,7 @@ import re
 import unicodedata
 
 from .config import BambaraNormalizerConfig
+from .dates import normalize_dates_in_text
 from .numbers import normalize_numbers_in_text
 
 
@@ -47,47 +48,83 @@ class BambaraNormalizer:
     """
 
     SPECIAL_CHARS = {
-        'ɛ': '\u025B',
-        'Ɛ': '\u0190',
-        'ɔ': '\u0254',
-        'Ɔ': '\u0186',
-        'ɲ': '\u0272',
-        'Ɲ': '\u019D',
-        'ŋ': '\u014B',
-        'Ŋ': '\u014A',
+        "ɛ": "\u025b",
+        "Ɛ": "\u0190",
+        "ɔ": "\u0254",
+        "Ɔ": "\u0186",
+        "ɲ": "\u0272",
+        "Ɲ": "\u019d",
+        "ŋ": "\u014b",
+        "Ŋ": "\u014a",
     }
 
     APOSTROPHE_VARIANTS = [
-        '\u0027',
-        '\u2019',
-        '\u02BC',
-        '\u2018',
-        '\u0060',
-        '\u00B4',
-        '\u2032',
-        '\uFF07',
-        '\u02B9',
-        '\u02BB',
+        "\u0027",
+        "\u2019",
+        "\u02bc",
+        "\u2018",
+        "\u0060",
+        "\u00b4",
+        "\u2032",
+        "\uff07",
+        "\u02b9",
+        "\u02bb",
     ]
 
-
     KE_POSTPOSITIONS = {
-        'la', 'ye', 'fɛ', 'kɔnɔ', 'kɔ', 'kɔrɔ',
-        'da', 'daa', 'kun', 'ɲɛ', 'ɲɛɛ', 'ɲɛfɛ',
-        'bolo', 'sɛmɛ', 'cɛ', 'cɛma', 'kɔfɛ', 'kosɔn', 'kama',
+        "la",
+        "ye",
+        "fɛ",
+        "kɔnɔ",
+        "kɔ",
+        "kɔrɔ",
+        "da",
+        "daa",
+        "kun",
+        "ɲɛ",
+        "ɲɛɛ",
+        "ɲɛfɛ",
+        "bolo",
+        "sɛmɛ",
+        "cɛ",
+        "cɛma",
+        "kɔfɛ",
+        "kosɔn",
+        "kama",
     }
-
 
     REPORTED_SPEECH_MARKERS = {
-        'ko', 'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
-        'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
+        "ko",
+        "ka",
+        "kana",
+        "tɛ",
+        "te",
+        "bɛ",
+        "be",
+        "bɛna",
+        "bena",
+        "tɛna",
+        "tena",
+        "tun",
+        "mana",
     }
 
-
     CLAUSE_MARKERS = {
-        'ka', 'kana', 'tɛ', 'te', 'bɛ', 'be',
-        'bɛna', 'bena', 'tɛna', 'tena', 'tun', 'mana',
-        'yɛrɛ', 'de', 'dɛ',
+        "ka",
+        "kana",
+        "tɛ",
+        "te",
+        "bɛ",
+        "be",
+        "bɛna",
+        "bena",
+        "tɛna",
+        "tena",
+        "tun",
+        "mana",
+        "yɛrɛ",
+        "de",
+        "dɛ",
     }
 
     SIMPLE_CONTRACTIONS = {
@@ -99,61 +136,81 @@ class BambaraNormalizer:
     }
 
     EXTENDED_CONTRACTIONS = {
-        "b'a": "bɛ a", "t'a": "tɛ a", "y'a": "ye a",
-        "b'i": "bɛ i", "t'i": "tɛ i", "y'i": "ye i",
-        "b'o": "bɛ o", "t'o": "tɛ o", "y'o": "ye o",
-        "y'u": "ye u", "b'u": "bɛ u", "t'u": "tɛ u",
+        "b'a": "bɛ a",
+        "t'a": "tɛ a",
+        "y'a": "ye a",
+        "b'i": "bɛ i",
+        "t'i": "tɛ i",
+        "y'i": "ye i",
+        "b'o": "bɛ o",
+        "t'o": "tɛ o",
+        "y'o": "ye o",
+        "y'u": "ye u",
+        "b'u": "bɛ u",
+        "t'u": "tɛ u",
     }
-
 
     CONTRACTION_EXPANSIONS = {
-        "b'": "bɛ", "t'": "tɛ", "y'": "ye", "m'": "ma", "s'": "sa",
+        "b'": "bɛ",
+        "t'": "tɛ",
+        "y'": "ye",
+        "m'": "ma",
+        "s'": "sa",
     }
-
 
     CONTRACTION_PATTERNS = {
-        'bɛ': "b'",
-        'tɛ': "t'",
-        'ye': "y'",
-        'ni': "n'",
-        'na': "n'",
-        'ka': "k'",
-        'kɛ': "k'",
-        'ko': "k'",
-        'ma': "m'",
-        'sa': "s'",
+        "bɛ": "b'",
+        "tɛ": "t'",
+        "ye": "y'",
+        "ni": "n'",
+        "na": "n'",
+        "ka": "k'",
+        "kɛ": "k'",
+        "ko": "k'",
+        "ma": "m'",
+        "sa": "s'",
     }
 
-    VOWEL_STARTERS = {'a', 'i', 'o', 'u', 'e', 'ɛ', 'ɔ',
-                      'an', 'anw', 'aw', 'ale', 'olu'}
+    VOWEL_STARTERS = {"a", "i", "o", "u", "e", "ɛ", "ɔ", "an", "anw", "aw", "ale", "olu"}
 
     LEGACY_ORTHOGRAPHY = {
-        'è': 'ɛ', 'È': 'Ɛ', 'ò': 'ɔ', 'Ò': 'Ɔ',
-        'ê': 'ɛ', 'Ê': 'Ɛ', 'ô': 'ɔ', 'Ô': 'Ɔ',
-        'ε': 'ɛ', 'э': 'ɛ',
+        "è": "ɛ",
+        "È": "Ɛ",
+        "ò": "ɔ",
+        "Ò": "Ɔ",
+        "ê": "ɛ",
+        "Ê": "Ɛ",
+        "ô": "ɔ",
+        "Ô": "Ɔ",
+        "ε": "ɛ",
+        "э": "ɛ",
     }
 
     LEGACY_DIGRAPHS = {
-        'ny': 'ɲ', 'Ny': 'Ɲ', 'NY': 'Ɲ',
-        'ng': 'ŋ', 'Ng': 'Ŋ', 'NG': 'Ŋ',
+        "ny": "ɲ",
+        "Ny": "Ɲ",
+        "NY": "Ɲ",
+        "ng": "ŋ",
+        "Ng": "Ŋ",
+        "NG": "Ŋ",
     }
 
-    SENEGALESE_VARIANTS = {'ñ': 'ɲ', 'Ñ': 'Ɲ'}
+    SENEGALESE_VARIANTS = {"ñ": "ɲ", "Ñ": "Ɲ"}
 
-    TONE_DIACRITICS = {'\u0300', '\u0301', '\u030C', '\u0302', '\u0304'}
+    TONE_DIACRITICS = {"\u0300", "\u0301", "\u030c", "\u0302", "\u0304"}
 
-    PUNCTUATION_CATEGORIES = {'Po', 'Ps', 'Pe', 'Pi', 'Pf', 'Pd', 'Pc'}
+    PUNCTUATION_CATEGORIES = {"Po", "Ps", "Pe", "Pi", "Pf", "Pd", "Pc"}
 
     def __init__(self, config: BambaraNormalizerConfig | None = None):
         self.config = config or BambaraNormalizerConfig()
         self._compile_patterns()
 
     def _compile_patterns(self) -> None:
-        apostrophe_chars = ''.join(re.escape(c) for c in self.APOSTROPHE_VARIANTS)
-        self._apostrophe_pattern = re.compile(f'[{apostrophe_chars}]')
-        self._whitespace_pattern = re.compile(r'\s+')
-        self._repetition_pattern = re.compile(r'(.)\1{2,}')
-        self._number_pattern = re.compile(r'\d+')
+        apostrophe_chars = "".join(re.escape(c) for c in self.APOSTROPHE_VARIANTS)
+        self._apostrophe_pattern = re.compile(f"[{apostrophe_chars}]")
+        self._whitespace_pattern = re.compile(r"\s+")
+        self._repetition_pattern = re.compile(r"(.)\1{2,}")
+        self._number_pattern = re.compile(r"\d+")
         self._build_punctuation_pattern()
 
     def _build_punctuation_pattern(self) -> None:
@@ -163,9 +220,7 @@ class BambaraNormalizer:
             if unicodedata.category(char) in self.PUNCTUATION_CATEGORIES:
                 if char not in self.APOSTROPHE_VARIANTS:
                     punct_chars.append(char)
-        self._punctuation_pattern = re.compile(
-            f'[{"".join(re.escape(c) for c in punct_chars)}]'
-        )
+        self._punctuation_pattern = re.compile(f"[{''.join(re.escape(c) for c in punct_chars)}]")
 
     def __call__(self, text: str) -> str:
         return self.normalize(text)
@@ -174,7 +229,7 @@ class BambaraNormalizer:
         if not text:
             return ""
 
-        text = unicodedata.normalize('NFC', text)
+        text = unicodedata.normalize("NFC", text)
 
         if self.config.normalize_apostrophes:
             text = self._normalize_apostrophes(text)
@@ -182,11 +237,18 @@ class BambaraNormalizer:
         mode = self.config.contraction_mode
         if mode == "expand":
             text = self._expand_contractions(text)
+
         elif mode == "contract":
             text = self._contract_text(text)
 
         if self.config.normalize_legacy_orthography:
             text = self._normalize_legacy_orthography(text)
+
+        if self.config.expand_dates:
+            text = normalize_dates_in_text(text)
+
+        if self.config.expand_numbers:
+            text = normalize_numbers_in_text(text)
 
         if self.config.normalize_special_chars:
             text = self._normalize_special_chars(text)
@@ -194,11 +256,9 @@ class BambaraNormalizer:
         if self.config.lowercase:
             text = self._lowercase(text)
 
-        if self.config.expand_numbers:
-            text = normalize_numbers_in_text(text)
-
         if not self.config.preserve_tones:
             text = self._remove_tone_marks(text)
+
         elif self.config.remove_diacritics_except_tones:
             text = self._remove_non_tone_diacritics(text)
 
@@ -215,7 +275,6 @@ class BambaraNormalizer:
             text = self._normalize_whitespace(text)
 
         return text
-
 
     def _contract_text(self, text: str) -> str:
         """
@@ -244,7 +303,7 @@ class BambaraNormalizer:
                 next_word = words[i + 1]
                 next_word_lower = self._strip_tones_and_punct(next_word.lower())
 
-                if next_word_lower and next_word_lower[0] in 'aeiouɛɔ':
+                if next_word_lower and next_word_lower[0] in "aeiouɛɔ":
                     contracted_prefix = self.CONTRACTION_PATTERNS[word_lower]
                     contracted = contracted_prefix + next_word
                     result.append(contracted)
@@ -254,8 +313,7 @@ class BambaraNormalizer:
             result.append(word)
             i += 1
 
-        return ' '.join(result)
-
+        return " ".join(result)
 
     def _normalize_apostrophes(self, text: str) -> str:
         return self._apostrophe_pattern.sub("'", text)
@@ -313,7 +371,7 @@ class BambaraNormalizer:
             if next_base in self.CLAUSE_MARKERS:
                 return "ko"
 
-            if next_base == 'ma':
+            if next_base == "ma":
                 if idx + 2 < len(words):
                     word_after_ma = words[idx + 2]
                     word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
@@ -321,7 +379,7 @@ class BambaraNormalizer:
                     if idx + 3 < len(words):
                         third_word = words[idx + 3]
                         third_word_base = self._strip_tones_and_punct(third_word.lower())
-                        if third_word_base == 'ye':
+                        if third_word_base == "ye":
                             return "kɛ"
 
                     if word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
@@ -353,7 +411,7 @@ class BambaraNormalizer:
                             expanded = f"ko {pronoun}"
                         else:
                             expanded = f"ka {pronoun}"
-                    elif next_word_base == 'ma':
+                    elif next_word_base == "ma":
                         if i + 2 < len(words):
                             word_after_ma = words[i + 2]
                             word_after_ma_base = self._strip_tones_and_punct(word_after_ma.lower())
@@ -361,7 +419,7 @@ class BambaraNormalizer:
                             if i + 3 < len(words):
                                 third_word = words[i + 3]
                                 third_word_base = self._strip_tones_and_punct(third_word.lower())
-                                if third_word_base == 'ye':
+                                if third_word_base == "ye":
                                     expanded = f"kɛ {pronoun}"
                                 elif word_after_ma_base in self.REPORTED_SPEECH_MARKERS:
                                     expanded = f"ko {pronoun}"
@@ -388,7 +446,7 @@ class BambaraNormalizer:
 
             i += 1
 
-        return ' '.join(result)
+        return " ".join(result)
 
     def _expand_n_contraction(self, text: str) -> str:
         words = text.split()
@@ -406,7 +464,7 @@ class BambaraNormalizer:
                     next_word = words[i + 1]
                     next_word_base = self._strip_tones_and_punct(next_word.lower())
 
-                    if next_word_base == 'ma':
+                    if next_word_base == "ma":
                         expanded = f"na {pronoun}"
                     else:
                         expanded = f"ni {pronoun}"
@@ -419,18 +477,19 @@ class BambaraNormalizer:
 
             i += 1
 
-        return ' '.join(result)
-
+        return " ".join(result)
 
     def _strip_tones(self, word: str) -> str:
-        nfd = unicodedata.normalize('NFD', word)
-        return ''.join(c for c in nfd if c not in self.TONE_DIACRITICS)
+        nfd = unicodedata.normalize("NFD", word)
+        return "".join(c for c in nfd if c not in self.TONE_DIACRITICS)
 
     def _strip_tones_and_punct(self, word: str) -> str:
-        nfd = unicodedata.normalize('NFD', word)
-        word = ''.join(c for c in nfd if c not in self.TONE_DIACRITICS)
-        word = unicodedata.normalize('NFC', word)
-        return ''.join(c for c in word if unicodedata.category(c) not in self.PUNCTUATION_CATEGORIES)
+        nfd = unicodedata.normalize("NFD", word)
+        word = "".join(c for c in nfd if c not in self.TONE_DIACRITICS)
+        word = unicodedata.normalize("NFC", word)
+        return "".join(
+            c for c in word if unicodedata.category(c) not in self.PUNCTUATION_CATEGORIES
+        )
 
     def _normalize_legacy_orthography(self, text: str) -> str:
         for old, new in self.LEGACY_DIGRAPHS.items():
@@ -444,48 +503,48 @@ class BambaraNormalizer:
     def _normalize_special_chars(self, text: str) -> str:
         result = []
         for char in text:
-            if char in 'εЄє':
-                result.append('ɛ')
-            elif char in 'ΕЭэ':
-                result.append('Ɛ')
+            if char in "εЄє":
+                result.append("ɛ")
+            elif char in "ΕЭэ":
+                result.append("Ɛ")
             else:
                 result.append(char)
-        return ''.join(result)
+        return "".join(result)
 
     def _lowercase(self, text: str) -> str:
         return text.lower()
 
     def _remove_tone_marks(self, text: str) -> str:
-        text = unicodedata.normalize('NFD', text)
+        text = unicodedata.normalize("NFD", text)
         result = [c for c in text if c not in self.TONE_DIACRITICS]
-        return unicodedata.normalize('NFC', ''.join(result))
+        return unicodedata.normalize("NFC", "".join(result))
 
     def _remove_non_tone_diacritics(self, text: str) -> str:
-        text = unicodedata.normalize('NFD', text)
+        text = unicodedata.normalize("NFD", text)
         result = []
         for char in text:
             category = unicodedata.category(char)
-            if category != 'Mn' or char in self.TONE_DIACRITICS:
+            if category != "Mn" or char in self.TONE_DIACRITICS:
                 result.append(char)
-        return unicodedata.normalize('NFC', ''.join(result))
+        return unicodedata.normalize("NFC", "".join(result))
 
     def _remove_punctuation(self, text: str) -> str:
-        return self._punctuation_pattern.sub('', text)
+        return self._punctuation_pattern.sub("", text)
 
     def _strip_repetitions(self, text: str) -> str:
-        return self._repetition_pattern.sub(r'\1\1', text)
+        return self._repetition_pattern.sub(r"\1\1", text)
 
     def _normalize_compounds(self, text: str) -> str:
         compounds = [
-            (r'\b(bi)\s+(saba|naani|duuru|wɔɔrɔ|wolonwula|segin|kɔnɔntɔn)\b', r'\1\2'),
-            (r'\b(tan)\s+(ni)\s+', r'\1 \2 '),
+            (r"\b(bi)\s+(saba|naani|duuru|wɔɔrɔ|wolonwula|segin|kɔnɔntɔn)\b", r"\1\2"),
+            (r"\b(tan)\s+(ni)\s+", r"\1 \2 "),
         ]
         for pattern, replacement in compounds:
             text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
         return text
 
     def _normalize_whitespace(self, text: str) -> str:
-        return self._whitespace_pattern.sub(' ', text).strip()
+        return self._whitespace_pattern.sub(" ", text).strip()
 
     def normalize_for_comparison(self, text: str) -> str:
         original_config = self.config
@@ -498,47 +557,49 @@ class BambaraNormalizer:
         return [self.normalize(text) for text in texts]
 
     def get_normalization_diff(self, text: str) -> dict[str, str]:
-        result = {'original': text}
-        text = unicodedata.normalize('NFC', text)
-        result['nfc_normalized'] = text
+        result = {"original": text}
+        text = unicodedata.normalize("NFC", text)
+        result["nfc_normalized"] = text
 
         if self.config.normalize_apostrophes:
             text = self._normalize_apostrophes(text)
-            result['apostrophes_normalized'] = text
+            result["apostrophes_normalized"] = text
 
         mode = self.config.contraction_mode
         if mode == "expand":
             text = self._expand_contractions(text)
-            result['contractions_expanded'] = text
+            result["contractions_expanded"] = text
         elif mode == "contract":
             text = self._contract_text(text)
-            result['contractions_contracted'] = text
+            result["contractions_contracted"] = text
 
         if self.config.normalize_legacy_orthography:
             text = self._normalize_legacy_orthography(text)
-            result['legacy_normalized'] = text
+            result["legacy_normalized"] = text
 
         if self.config.lowercase:
             text = self._lowercase(text)
-            result['lowercased'] = text
+            result["lowercased"] = text
 
         if not self.config.preserve_tones:
             text = self._remove_tone_marks(text)
-            result['tones_removed'] = text
+            result["tones_removed"] = text
 
         if self.config.remove_punctuation:
             text = self._remove_punctuation(text)
-            result['punctuation_removed'] = text
+            result["punctuation_removed"] = text
 
         if self.config.normalize_whitespace:
             text = self._normalize_whitespace(text)
-            result['whitespace_normalized'] = text
+            result["whitespace_normalized"] = text
 
-        result['final'] = text
+        result["final"] = text
         return result
 
 
-def create_normalizer(preset: str = "standard", mode: str = "expand", **kwargs) -> BambaraNormalizer:
+def create_normalizer(
+    preset: str = "standard", mode: str = "expand", **kwargs
+) -> BambaraNormalizer:
     """
     Factory function to create a normalizer with preset configuration.
 

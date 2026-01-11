@@ -1,4 +1,3 @@
-
 # Copyright 2026 sudoping01.
 
 # Licensed under the MIT License; you may not use this file except in compliance with the License.
@@ -24,7 +23,6 @@ from .normalizer import BambaraNormalizer
 
 
 class BambaraTransform(tr.AbstractTransform):
-
     def __init__(self, normalizer: BambaraNormalizer):
         self.normalizer = normalizer
 
@@ -39,7 +37,7 @@ def create_bambara_transform(
     normalizer: BambaraNormalizer | None = None,
     config: BambaraNormalizerConfig | None = None,
     preset: str = "wer",
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> tr.Compose:
     """
     Create a jiwer transform pipeline with Bambara normalization.
@@ -70,19 +68,21 @@ def create_bambara_transform(
                 config.contraction_mode = mode
             normalizer = BambaraNormalizer(config)
 
-    return tr.Compose([
-        BambaraTransform(normalizer),
-        tr.RemoveMultipleSpaces(),
-        tr.Strip(),
-        tr.ReduceToListOfListOfWords(),
-    ])
+    return tr.Compose(
+        [
+            BambaraTransform(normalizer),
+            tr.RemoveMultipleSpaces(),
+            tr.Strip(),
+            tr.ReduceToListOfListOfWords(),
+        ]
+    )
 
 
 def create_bambara_char_transform(
     normalizer: BambaraNormalizer | None = None,
     config: BambaraNormalizerConfig | None = None,
     preset: str = "cer",
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> tr.Compose:
     """
     Create a jiwer character-level transform pipeline with Bambara normalization.
@@ -113,19 +113,21 @@ def create_bambara_char_transform(
                 config.contraction_mode = mode
             normalizer = BambaraNormalizer(config)
 
-    return tr.Compose([
-        BambaraTransform(normalizer),
-        tr.RemoveMultipleSpaces(),
-        tr.Strip(),
-        tr.ReduceToListOfListOfChars(),
-    ])
+    return tr.Compose(
+        [
+            BambaraTransform(normalizer),
+            tr.RemoveMultipleSpaces(),
+            tr.Strip(),
+            tr.ReduceToListOfListOfChars(),
+        ]
+    )
 
 
 def compute_wer(
     reference: str | list[str],
     hypothesis: str | list[str],
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> float:
     """
     Compute Word Error Rate with Bambara normalization.
@@ -139,12 +141,13 @@ def compute_wer(
     Returns:
         WER as float (0.0 to 1.0+)
     """
-    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
+    transform = (
+        create_bambara_transform(normalizer, mode=mode)
+        if normalizer
+        else create_bambara_transform(mode=mode)
+    )
     return jiwer.wer(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
 
@@ -152,7 +155,7 @@ def compute_cer(
     reference: str | list[str],
     hypothesis: str | list[str],
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> float:
     """
     Compute Character Error Rate with Bambara normalization.
@@ -166,12 +169,13 @@ def compute_cer(
     Returns:
         CER as float (0.0 to 1.0+)
     """
-    transform = create_bambara_char_transform(normalizer, mode=mode) if normalizer else create_bambara_char_transform(mode=mode)
+    transform = (
+        create_bambara_char_transform(normalizer, mode=mode)
+        if normalizer
+        else create_bambara_char_transform(mode=mode)
+    )
     return jiwer.cer(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
 
@@ -179,7 +183,7 @@ def compute_mer(
     reference: str | list[str],
     hypothesis: str | list[str],
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> float:
     """
     Compute Match Error Rate with Bambara normalization.
@@ -193,12 +197,13 @@ def compute_mer(
     Returns:
         MER as float
     """
-    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
+    transform = (
+        create_bambara_transform(normalizer, mode=mode)
+        if normalizer
+        else create_bambara_transform(mode=mode)
+    )
     return jiwer.mer(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
 
@@ -206,7 +211,7 @@ def compute_wil(
     reference: str | list[str],
     hypothesis: str | list[str],
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> float:
     """
     Compute Word Information Lost with Bambara normalization.
@@ -220,12 +225,13 @@ def compute_wil(
     Returns:
         WIL as float
     """
-    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
+    transform = (
+        create_bambara_transform(normalizer, mode=mode)
+        if normalizer
+        else create_bambara_transform(mode=mode)
+    )
     return jiwer.wil(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
 
@@ -233,7 +239,7 @@ def compute_wip(
     reference: str | list[str],
     hypothesis: str | list[str],
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> float:
     """
     Compute Word Information Preserved with Bambara normalization.
@@ -247,19 +253,18 @@ def compute_wip(
     Returns:
         WIP as float
     """
-    transform = create_bambara_transform(normalizer, mode=mode) if normalizer else create_bambara_transform(mode=mode)
+    transform = (
+        create_bambara_transform(normalizer, mode=mode)
+        if normalizer
+        else create_bambara_transform(mode=mode)
+    )
     return jiwer.wip(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
 
 def compute_der(
-    reference: str,
-    hypothesis: str,
-    normalizer: BambaraNormalizer | None = None
+    reference: str, hypothesis: str, normalizer: BambaraNormalizer | None = None
 ) -> float:
     """
     Compute Diacritic Error Rate (DER).
@@ -281,19 +286,19 @@ def compute_der(
 
     def extract_diacritics(text: str) -> list[str]:
         result = []
-        normalized = unicodedata.normalize('NFD', text)
+        normalized = unicodedata.normalize("NFD", text)
         for char in normalized:
-            if unicodedata.category(char) == 'Mn':
+            if unicodedata.category(char) == "Mn":
                 result.append(char)
             elif char.isalpha():
-                result.append('')  # Placeholder for no diacritic
+                result.append("")  # Placeholder for no diacritic
         return result
 
     ref_diacritics = extract_diacritics(reference)
     hyp_diacritics = extract_diacritics(hypothesis)
 
     if len(ref_diacritics) == 0:
-        return 0.0 if len(hyp_diacritics) == 0 else float('inf')
+        return 0.0 if len(hyp_diacritics) == 0 else float("inf")
 
     errors = 0
     for ref_d, hyp_d in zip(ref_diacritics, hyp_diacritics):
@@ -310,7 +315,7 @@ def evaluate(
     hypothesis: str,
     normalizer: BambaraNormalizer | None = None,
     compute_diacritic_rate: bool = False,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> EvaluationResult:
     """
     Comprehensive ASR evaluation with Bambara normalization.
@@ -340,14 +345,14 @@ def evaluate(
         reference,
         hypothesis,
         reference_transform=word_transform,
-        hypothesis_transform=word_transform
+        hypothesis_transform=word_transform,
     )
 
     char_output = jiwer.process_characters(
         reference,
         hypothesis,
         reference_transform=char_transform,
-        hypothesis_transform=char_transform
+        hypothesis_transform=char_transform,
     )
 
     der = None
@@ -384,7 +389,7 @@ def evaluate_batch(
     hypotheses: list[str],
     normalizer: BambaraNormalizer | None = None,
     compute_diacritic_rate: bool = False,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> tuple[EvaluationResult, list[EvaluationResult]]:
     """
     Evaluate a batch of reference-hypothesis pairs.
@@ -413,14 +418,14 @@ def evaluate_batch(
         references,
         hypotheses,
         reference_transform=word_transform,
-        hypothesis_transform=word_transform
+        hypothesis_transform=word_transform,
     )
 
     char_output = jiwer.process_characters(
         references,
         hypotheses,
         reference_transform=char_transform,
-        hypothesis_transform=char_transform
+        hypothesis_transform=char_transform,
     )
 
     individual_results = []
@@ -431,7 +436,7 @@ def evaluate_batch(
         result = evaluate(ref, hyp, normalizer, compute_diacritic_rate)
         individual_results.append(result)
 
-        if result.der is not None and result.der != float('inf'):
+        if result.der is not None and result.der != float("inf"):
             der_sum += result.der
             der_count += 1
 
@@ -463,7 +468,7 @@ def visualize_alignment(
     reference: str,
     hypothesis: str,
     normalizer: BambaraNormalizer | None = None,
-    mode: str = "expand"
+    mode: str = "expand",
 ) -> str:
     """
     Visualize word alignment between reference and hypothesis.
@@ -484,10 +489,7 @@ def visualize_alignment(
     transform = create_bambara_transform(normalizer)
 
     word_output = jiwer.process_words(
-        reference,
-        hypothesis,
-        reference_transform=transform,
-        hypothesis_transform=transform
+        reference, hypothesis, reference_transform=transform, hypothesis_transform=transform
     )
 
     return jiwer.visualize_alignment(word_output)
@@ -518,7 +520,7 @@ class BambaraEvaluator:
         self,
         config: BambaraNormalizerConfig | None = None,
         preset: str = "wer",
-        mode: str = "expand"
+        mode: str = "expand",
     ):
         """
         Initialize the evaluator.
@@ -552,54 +554,53 @@ class BambaraEvaluator:
         return self.normalizer.config.contraction_mode
 
     def evaluate(
-        self,
-        reference: str,
-        hypothesis: str,
-        compute_diacritic_rate: bool = False
+        self, reference: str, hypothesis: str, compute_diacritic_rate: bool = False
     ) -> EvaluationResult:
         return evaluate(reference, hypothesis, self.normalizer, compute_diacritic_rate)
 
     def evaluate_batch(
-        self,
-        references: list[str],
-        hypotheses: list[str],
-        compute_diacritic_rate: bool = False
+        self, references: list[str], hypotheses: list[str], compute_diacritic_rate: bool = False
     ) -> tuple[EvaluationResult, list[EvaluationResult]]:
         return evaluate_batch(references, hypotheses, self.normalizer, compute_diacritic_rate)
 
     def wer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
         return jiwer.wer(
-            reference, hypothesis,
+            reference,
+            hypothesis,
             reference_transform=self.transform,
-            hypothesis_transform=self.transform
+            hypothesis_transform=self.transform,
         )
 
     def cer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
         return jiwer.cer(
-            reference, hypothesis,
+            reference,
+            hypothesis,
             reference_transform=self.char_transform,
-            hypothesis_transform=self.char_transform
+            hypothesis_transform=self.char_transform,
         )
 
     def mer(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
         return jiwer.mer(
-            reference, hypothesis,
+            reference,
+            hypothesis,
             reference_transform=self.transform,
-            hypothesis_transform=self.transform
+            hypothesis_transform=self.transform,
         )
 
     def wil(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
         return jiwer.wil(
-            reference, hypothesis,
+            reference,
+            hypothesis,
             reference_transform=self.transform,
-            hypothesis_transform=self.transform
+            hypothesis_transform=self.transform,
         )
 
     def wip(self, reference: str | list[str], hypothesis: str | list[str]) -> float:
         return jiwer.wip(
-            reference, hypothesis,
+            reference,
+            hypothesis,
             reference_transform=self.transform,
-            hypothesis_transform=self.transform
+            hypothesis_transform=self.transform,
         )
 
     def visualize(self, reference: str, hypothesis: str) -> str:
