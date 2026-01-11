@@ -1,4 +1,3 @@
-
 # Copyright 2026 sudoping01.
 
 # Licensed under the MIT License; you may not use this file except in compliance with the License.
@@ -17,7 +16,21 @@ __author__ = "sudoping01"
 __license__ = "MIT"
 
 
-
+from .dates import (
+    DAYS_OF_WEEK,
+    MONTHS,
+    bambara_to_date,
+    bambara_to_day_of_week,
+    bambara_to_month,
+    date_to_bambara,
+    day_of_week_to_bambara,
+    denormalize_dates_in_text,
+    format_date_bambara,
+    is_bambara_day,
+    is_bambara_month,
+    month_to_bambara,
+    normalize_dates_in_text,
+)
 from .evaluation import (
     BambaraEvaluator,
     BambaraTransform,
@@ -66,50 +79,58 @@ from .utils import (
 )
 
 __all__ = [
-    'BambaraNormalizer',
-    'BambaraNormalizerConfig',
-    'NormalizationLevel',
-    'BambaraEvaluator',
-    'EvaluationResult',
-    'create_normalizer',
-    'compute_wer',
-    'compute_cer',
-    'compute_der',
-    'compute_mer',
-    'compute_wil',
-    'compute_wip',
-    'evaluate',
-    'evaluate_batch',
-    'visualize_alignment',
-    'create_bambara_transform',
-    'BambaraTransform',
-
-    'is_bambara_char',
-    'is_bambara_special_char',
-    'get_base_char',
-    'get_tone',
-    'add_tone',
-    'remove_tones',
-    'has_tone_marks',
-    'count_tone_marks',
-    'validate_bambara_text',
-    'analyze_text',
-    'normalize_unicode_variants',
-    'get_unicode_info',
-
-    'BAMBARA_VOWELS',
-    'BAMBARA_CONSONANTS',
-    'BAMBARA_SPECIAL_CHARS',
-    'BAMBARA_ALPHABET',
-
-
+    "BambaraNormalizer",
+    "BambaraNormalizerConfig",
+    "NormalizationLevel",
+    "BambaraEvaluator",
+    "EvaluationResult",
+    "create_normalizer",
+    "compute_wer",
+    "compute_cer",
+    "compute_der",
+    "compute_mer",
+    "compute_wil",
+    "compute_wip",
+    "evaluate",
+    "evaluate_batch",
+    "visualize_alignment",
+    "create_bambara_transform",
+    "BambaraTransform",
+    "is_bambara_char",
+    "is_bambara_special_char",
+    "get_base_char",
+    "get_tone",
+    "add_tone",
+    "remove_tones",
+    "has_tone_marks",
+    "count_tone_marks",
+    "validate_bambara_text",
+    "analyze_text",
+    "normalize_unicode_variants",
+    "get_unicode_info",
+    "BAMBARA_VOWELS",
+    "BAMBARA_CONSONANTS",
+    "BAMBARA_SPECIAL_CHARS",
+    "BAMBARA_ALPHABET",
     "number_to_bambara",
     "bambara_to_number",
     "normalize_numbers_in_text",
     "denormalize_numbers_in_text",
     "is_number_word",
     "number_to_ordinal",
-
+    "date_to_bambara",
+    "bambara_to_date",
+    "format_date_bambara",
+    "day_of_week_to_bambara",
+    "bambara_to_day_of_week",
+    "month_to_bambara",
+    "bambara_to_month",
+    "normalize_dates_in_text",
+    "denormalize_dates_in_text",
+    "is_bambara_month",
+    "is_bambara_day",
+    "DAYS_OF_WEEK",
+    "MONTHS",
 ]
 
 
@@ -135,5 +156,4 @@ def normalize(text: str, preset: str = "standard", **kwargs) -> str:
     return normalizer(text)
 
 
-
-__all__.append('normalize')
+__all__.append("normalize")
