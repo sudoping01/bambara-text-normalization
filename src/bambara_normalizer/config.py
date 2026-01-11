@@ -49,6 +49,7 @@ class BambaraNormalizerConfig:
         handle_french_loanwords: Apply French word normalization
         strip_repetitions: Normalize repeated characters
         normalize_compounds: Standardize compound word spacing
+        expand_times: Convert time patterns to Bambara
     """
 
     contraction_mode: str = "expand"
@@ -61,6 +62,7 @@ class BambaraNormalizerConfig:
     normalize_special_chars: bool = True
     expand_numbers: bool = False
     expand_dates: bool = False
+    expand_times: bool = False
     remove_diacritics_except_tones: bool = False
     handle_french_loanwords: bool = True
     strip_repetitions: bool = False
@@ -92,6 +94,7 @@ class BambaraNormalizerConfig:
             normalize_special_chars=True,
             expand_numbers=True,
             expand_dates=True,
+            expand_times=True,
             remove_diacritics_except_tones=True,
             handle_french_loanwords=True,
             strip_repetitions=True,
@@ -111,6 +114,7 @@ class BambaraNormalizerConfig:
             normalize_special_chars=True,
             expand_numbers=True,
             expand_dates=True,
+            expand_times=True,
             remove_diacritics_except_tones=True,
             handle_french_loanwords=True,
             strip_repetitions=False,
@@ -130,6 +134,7 @@ class BambaraNormalizerConfig:
             normalize_special_chars=True,
             expand_numbers=False,
             expand_dates=False,
+            expand_times=False,
             remove_diacritics_except_tones=False,
             handle_french_loanwords=False,
             strip_repetitions=False,
@@ -149,6 +154,7 @@ class BambaraNormalizerConfig:
             normalize_special_chars=False,
             expand_numbers=False,
             expand_dates=False,
+            expand_times=False,
             remove_diacritics_except_tones=False,
             handle_french_loanwords=False,
             strip_repetitions=False,
