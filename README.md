@@ -29,13 +29,14 @@ This tool serves **two complementary purposes** for Bambara language processing:
 > Bambara orthography allows variation: the same utterance can be written as `k'a ta` or `ka a ta`  both are correct. Without normalization, evaluation metrics unfairly penalize models for human writing inconsistencies rather than actual recognition errors.
 
 ---
-
 ## Installation
 
 ```bash
+pip install bambara-text-normalizer
+```
+```bash
 pip install git+https://github.com/sudoping01/bambara-text-normalization.git
 ```
-
 ---
 
 ## Text Normalization
