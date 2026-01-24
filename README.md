@@ -78,6 +78,7 @@ text = normalize(
     normalize_apostrophes=True,         
     normalize_special_chars=True,    
     expand_dates = False,
+    expand_measurements=False, 
     expand_numbers=False,  
     expand_times=False,            
     remove_diacritics_except_tones=False,  
@@ -371,6 +372,114 @@ Duration follows this structure:
 
 Example: **1h30min10s** => `lɛrɛ kelen ni miniti bi saba ni segɔni tan`
 
+---
+
+## Measurement Normalization
+
+The normalizer supports bidirectional measurement conversion between standard units and Bambara expressions (TN/ITN).
+
+### With Normalizer
+```python
+from bambara_normalizer import normalize
+
+normalize("A ye 5 kg san", expand_measurements=True)   # => "a ye kilogaramu duuru san"
+normalize("A ye 5 kg san", expand_measurements=False)  # => "a ye 5 kg san"
+
+# WER preset has expand_measurements=True by default
+normalize("So in bɛ 100 m", preset="wer")  # => "so in bɛ mɛtɛrɛ kɛmɛ"
+```
+
+### Measurement to Bambara (Text Normalization)
+```python
+from bambara_normalizer import measurement_to_bambara, format_measurement_bambara, normalize_measurements_in_text
+
+# Weight
+measurement_to_bambara(5, "kg")      # => "kilogaramu duuru"
+measurement_to_bambara(100, "g")     # => "garamu kɛmɛ"
+
+# Length
+measurement_to_bambara(10, "km")     # => "kilomɛtɛrɛ tan"
+measurement_to_bambara(100, "m")     # => "mɛtɛrɛ kɛmɛ"
+measurement_to_bambara(50, "cm")     # => "santimɛtɛrɛ bi duuru"
+
+# Volume
+measurement_to_bambara(2, "L")       # => "litiri fila"
+measurement_to_bambara(500, "mL")    # => "mililitiri kɛmɛ duuru"
+
+# Area
+measurement_to_bambara(3, "ha")      # => "ɛkitari saba"
+measurement_to_bambara(100, "m²")    # => "mɛtɛrɛ kare kɛmɛ"
+
+# Decimal values
+measurement_to_bambara(2.5, "L")     # => "litiri fila tomi duuru"
+
+# From string format
+format_measurement_bambara("5kg")    # => "kilogaramu duuru"
+format_measurement_bambara("100 m")  # => "mɛtɛrɛ kɛmɛ"
+
+# In text
+normalize_measurements_in_text("A ye 5 kg san")  # => "A ye kilogaramu duuru san"
+normalize_measurements_in_text("So in bɛ 100 m") # => "So in bɛ mɛtɛrɛ kɛmɛ"
+```
+
+### Bambara to Measurement (Inverse Text Normalization)
+```python
+from bambara_normalizer import bambara_to_measurement, denormalize_measurements_in_text
+
+bambara_to_measurement("kilogaramu duuru")
+# => (5, 'kg')
+
+bambara_to_measurement("mɛtɛrɛ kɛmɛ")
+# => (100, 'm')
+
+bambara_to_measurement("litiri fila tomi duuru")
+# => (2.5, 'L')
+
+# In text
+denormalize_measurements_in_text("A ye kilogaramu duuru san")
+# => "A ye 5 kg san"
+```
+
+### Measurement Format
+
+Measurements follow this structure:
+```
+[unit] [number]
+```
+
+Example: **5 kg** => `kilogaramu duuru`
+
+Literal translation: "kilogram five"
+
+### Supported Units
+
+#### Weight
+| Unit | Abbreviation | Bambara |
+|------|--------------|---------|
+| Kilogram | kg | kilogaramu |
+| Gram | g | garamu |
+| Milligram | mg | miligaramu |
+| Ton | t | tɔni |
+
+#### Length
+| Unit | Abbreviation | Bambara |
+|------|--------------|---------|
+| Kilometer | km | kilomɛtɛrɛ |
+| Meter | m | mɛtɛrɛ |
+| Centimeter | cm | santimɛtɛrɛ |
+| Millimeter | mm | milimɛtɛrɛ |
+
+#### Volume
+| Unit | Abbreviation | Bambara |
+|------|--------------|---------|
+| Liter | L | litiri |
+| Milliliter | mL | mililitiri |
+
+#### Area
+| Unit | Abbreviation | Bambara |
+|------|--------------|---------|
+| Hectare | ha | ɛkitari |
+| Square meter | m² | mɛtɛrɛ kare |
 
 ## ASR Evaluation Framework
 
@@ -711,6 +820,14 @@ from bambara_normalizer import (
     format_duration_bambara,
     normalize_times_in_text,
     is_time_word,
+
+    measurement_to_bambara,
+    bambara_to_measurement,
+    format_measurement_bambara,
+    normalize_measurements_in_text,
+    denormalize_measurements_in_text,
+    is_measurement_word,
+    get_unit_category,
 )
 
 
@@ -808,6 +925,28 @@ normalize_times_in_text("A nana 7:30 la")  # "A nana Nɛgɛ kaɲɛ wolonwula ...
 is_time_word("lɛrɛ")                      # True
 is_time_word("miniti")                    # True
 is_time_word("segɔni")                    # True
+
+
+
+# Measurement conversion: units => Bambara
+measurement_to_bambara(5, "kg")          # "kilogaramu duuru"
+measurement_to_bambara(100, "m")         # "mɛtɛrɛ kɛmɛ"
+measurement_to_bambara(2.5, "L")         # "litiri fila tomi duuru"
+format_measurement_bambara("5kg")        # "kilogaramu duuru"
+
+# Measurement conversion: Bambara => units
+bambara_to_measurement("kilogaramu duuru")   # (5, 'kg')
+bambara_to_measurement("mɛtɛrɛ kɛmɛ")        # (100, 'm')
+
+# Measurement normalization in text
+normalize_measurements_in_text("A ye 5 kg san")      # "A ye kilogaramu duuru san"
+denormalize_measurements_in_text("kilogaramu duuru") # "5 kg"
+
+# Check if word is measurement-related
+is_measurement_word("kilogaramu")        # True
+is_measurement_word("mɛtɛrɛ")            # True
+get_unit_category("kg")                  # "weight"
+get_unit_category("m")                   # "length"
 ```
 
 

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "sudoping01"
 __license__ = "MIT"
 
@@ -45,6 +45,21 @@ from .evaluation import (
     evaluate,
     evaluate_batch,
     visualize_alignment,
+)
+from .measurements import (
+    EKITARI,
+    GARAMU,
+    KILOGARAMU,
+    KILOMETRE,
+    LITIRI,
+    METRE,
+    bambara_to_measurement,
+    denormalize_measurements_in_text,
+    format_measurement_bambara,
+    get_unit_category,
+    is_measurement_word,
+    measurement_to_bambara,
+    normalize_measurements_in_text,
 )
 from .normalizer import (
     BambaraNormalizer,
@@ -159,6 +174,19 @@ __all__ = [
     "LERE",
     "MINITI",
     "SEGONI",
+    "measurement_to_bambara",
+    "bambara_to_measurement",
+    "format_measurement_bambara",
+    "normalize_measurements_in_text",
+    "denormalize_measurements_in_text",
+    "is_measurement_word",
+    "get_unit_category",
+    "KILOGARAMU",
+    "GARAMU",
+    "KILOMETRE",
+    "METRE",
+    "LITIRI",
+    "EKITARI",
 ]
 
 
