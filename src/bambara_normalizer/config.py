@@ -63,6 +63,7 @@ class BambaraNormalizerConfig:
     expand_numbers: bool = False
     expand_dates: bool = False
     expand_times: bool = False
+    expand_measurements: bool = False
     remove_diacritics_except_tones: bool = False
     handle_french_loanwords: bool = True
     strip_repetitions: bool = False
@@ -93,6 +94,7 @@ class BambaraNormalizerConfig:
             normalize_apostrophes=True,
             normalize_special_chars=True,
             expand_numbers=True,
+            expand_measurements=True,
             expand_dates=True,
             expand_times=True,
             remove_diacritics_except_tones=True,

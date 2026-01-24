@@ -19,6 +19,7 @@ import unicodedata
 
 from .config import BambaraNormalizerConfig
 from .dates import normalize_dates_in_text
+from .measurements import normalize_measurements_in_text
 from .numbers import normalize_numbers_in_text
 from .times import normalize_times_in_text
 
@@ -250,6 +251,9 @@ class BambaraNormalizer:
 
         if self.config.expand_times:
             text = normalize_times_in_text(text)
+
+        if self.config.expand_measurements:
+            text = normalize_measurements_in_text(text)
 
         if self.config.expand_numbers:
             text = normalize_numbers_in_text(text)
